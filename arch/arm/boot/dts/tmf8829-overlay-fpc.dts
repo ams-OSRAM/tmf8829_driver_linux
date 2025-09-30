@@ -1,0 +1,71 @@
+/*
+ ************************************************************************************
+ * Copyright (c) [2025] ams-OSRAM AG                                                *
+ *                                                                                  *
+ * SPDX-License-Identifier: GPL-2.0 OR MIT                                          *
+ *                                                                                  *
+ * For the full license texts, see LICENSES-GPL-2.0.txt or LICENSES-MIT.TXT.        *
+ ************************************************************************************
+*/
+
+/* Definitions for tmf8829 time-of-flight sensor from ams AG
+ *
+ * Compile:
+ * dtc -@ -I dts -O dtb -o tmf8829-overlay-fpc.dtbo tmf8829-overlay-fpc.dts
+ */
+
+/dts-v1/;
+/plugin/;
+
+/ {
+  compatible = "brcm,bcm2835","brcm,bcm2708","brcm,bcm2709";
+
+  fragment@0 {
+    target = <&i2c0>;
+    __overlay__ {
+      status = "okay";
+    };
+  };
+
+  fragment@1 {
+    target = <&gpio>;
+    __overlay__ {
+      tmf8829_pins: tmf8829_pins {
+        brcm,pins = <44 40>; /*interrupt (CAM_IO0->GPIO44), enable (CAM_IO1->GPIO40)*/
+        brcm,function = <0 1>; /*INT input, enable output*/
+        brcm,pull = <0 0>; /*disable pull on INT, enable pull-down on CE*/
+      };
+    };
+  };
+
+  fragment@2 {
+    target = <&i2c0>;
+    __overlay__ {
+      #address-cells = <1>;
+      #size-cells = <0>;
+      status = "okay";
+
+      tmf8829: tmf8829@41 {
+        compatible = "ams,tmf8829";
+        reg = <0x41>; /* x41 for HW */
+        pinctrl-names = "default";
+        pinctrl-0 = <&tmf8829_pins>;
+        interrupt-parent = <&gpio>;
+        interrupts = <44 8>; /*high-to-low trigger*/
+        irq-gpios = <&gpio 44 0>; /* CAM_GPIO0 on header*/
+        enable-gpios = <&gpio 40 0>; /* CAM_GPIO1 on header*/
+      };
+    };
+  };
+
+  __overrides__ {
+    tof_interrupt = <&tmf8829_pins>,"brcm,pins:0",
+        <&tmf8829>,"interrupts:0",
+        <&tmf8829>,"irq-gpios:4";
+    tof_interrupt_trigger = <&tmf8829>,"interrupts:4";
+    tof_enable = <&tmf8829_pins>,"brcm,pins:4",
+        <&tmf8829>,"enable-gpios:4";
+    tof_i2c_addr = <&tmf8829>,"reg:0";
+  };
+};
+

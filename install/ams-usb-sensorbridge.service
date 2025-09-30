@@ -1,0 +1,13 @@
+[Unit]
+Description=ams Raspberry USB Sensorbridge
+After=systemd-modules-load.service
+DefaultDependencies=no
+ 
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStartPre=/opt/USBSensorBridgeRuntime/startup/start_usb_sensor_bridge.sh
+ExecStart=/usr/sbin/insmod /opt/USBSensorBridgeRuntime/modules/tmf8829.ko
+ 
+[Install]
+WantedBy=sysinit.target

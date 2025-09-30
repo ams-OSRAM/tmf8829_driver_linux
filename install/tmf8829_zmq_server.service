@@ -1,0 +1,13 @@
+[Unit]
+Description=tmf8829_zeromq_server_linux
+After=multi-user.target
+
+[Service]
+Type=simple
+Restart=always
+ExecStart=/usr/bin/python3 /home/ams/tmf8829_zeromq_server_linux/tmf8829_zeromq_server_linux.py
+StandardOutput=truncate:/var/log/tmf8829_zmq_server.log
+StandardError=truncate:/var/log/tmf8829_zmq_server.log
+
+[Install]
+WantedBy=multi-user.target

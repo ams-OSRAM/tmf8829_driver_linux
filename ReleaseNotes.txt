@@ -1,0 +1,26 @@
+===================================================
+Release Notes TMF8829 Linux Driver
+===================================================
+---------------------------------------------------
+- 2v1 - Release for ROM 1v1 parts
+---------------------------------------------------
+- clk correction: wrong ratio fix
+- clk correction in driver possible
+---------------------------------------------------
+- 2v0 - Release for ROM 1v1 parts
+---------------------------------------------------
+ Read / write configuration size adapted
+ SysFs: chip_enable_store: start ROM or RAM application (with patch)
+ switch off unused communication interface
+
+---------------------------------------------------
+- 1v0  - First linux driver release
+---------------------------------------------------
+ Interfaces: spi, i2c
+ Interrupt: triggered by pin, register polling
+ SysFs: Common attributes, Application attributes
+ Misc Device: Reading the output data
+ TMF8829 Application: All FP-modes, histogram dumping
+
+
+
