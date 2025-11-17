@@ -365,7 +365,7 @@ static ssize_t request_ram_patch_store(struct device *dev, struct device_attribu
         dev_err(dev, "Read Device Info Error %d\n", error);
         goto err_fmwdwnl;
     }
-    tmf8829ClrAndEnableInterrupts(&chip->tof_core, TMF8829_APP_INT_RESULTS | TMF8829_APP_INT_HISTOGRAMS);
+    tmf8829ClrAndEnableInterrupts(&chip->tof_core, TMF8829_APP_INT_ALL);
     dev_info(dev, "Download done\n");
     
 err_fmwdwnl:
@@ -1099,7 +1099,7 @@ static int tmf8829_probe(struct i2c_client *client, const struct i2c_device_id *
         goto gen_err;
     }
     chip->tof_core.cyclicRunning = 0;
-    tmf8829ClrAndEnableInterrupts( &chip->tof_core, TMF8829_APP_INT_RESULTS | TMF8829_APP_INT_HISTOGRAMS );
+    tmf8829ClrAndEnableInterrupts( &chip->tof_core, TMF8829_APP_INT_ALL );
 
     AMS_MUTEX_UNLOCK(&chip->lock);
 
@@ -1246,4 +1246,4 @@ int tof_register_spi_driver(tmf8829_chip *tof_chip)
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("ams-OSRAM AG TMF8829 ToF sensor driver");
-MODULE_VERSION("2.1");
+MODULE_VERSION("2.2");

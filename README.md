@@ -184,6 +184,10 @@ Configuration of Raspberry Pi zero:
 13. see the running services
 
     - systemctl
+14. start / stop the running tmf8829 zmq service
+
+    - systemctl start tmf8829_zmq_server.service
+    - systemctl stop tmf8829_zmq_server.service
 
 ## General Raspberry Information
 

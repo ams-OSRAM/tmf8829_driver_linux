@@ -21,6 +21,8 @@
  *     ... remove unused ROM start functionality
  *     ... clock correction
  *     ... probe error handling changed
+ * 2.2 ... proximity and motion interrupt handling in core driver added
+ * 
  */
 
 /*! \file tmf8829_driver.h - TMF8829 linux driver
