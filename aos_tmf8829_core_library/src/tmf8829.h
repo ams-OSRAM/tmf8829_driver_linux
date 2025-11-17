@@ -31,10 +31,11 @@ extern "C" {
  *     .. some cleanup
  *     .. handleReceivedHistogramDataEnd added (not used in linux driver)
  *     .. clock correction could be done in driver
+ * 1.3 .. Motion and proximity interrupt added
 */
 
 #define TMF8829_DRIVER_MAJOR_VERSION  1
-#define TMF8829_DRIVER_MINOR_VERSION  2
+#define TMF8829_DRIVER_MINOR_VERSION  3
 
 // ---------------------------------------------- defines -----------------------------------------
 
@@ -67,7 +68,11 @@ extern "C" {
 
 /* Interrupt macros */
 #define TMF8829_APP_INT_RESULTS                 0x01  /**< a measurement result is ready for readout */
-#define TMF8829_APP_INT_HISTOGRAMS              0x08  /**< histogram results are ready for readout */
+#define TMF8829_APP_INT_MOTION                  0x02  /**< interrupt for motion detection            */
+#define TMF8829_APP_INT_PROXIMITY               0x04  /**< interrupt for proximity results           */
+#define TMF8829_APP_INT_HISTOGRAMS              0x08  /**< histogram results are ready for readout   */
+
+#define TMF8829_APP_INT_ALL       ( TMF8829_APP_INT_RESULTS | TMF8829_APP_INT_MOTION  | TMF8829_APP_INT_PROXIMITY | TMF8829_APP_INT_HISTOGRAMS )
 
 /* application registers */
 #define TMF8829_APP_ID                          0x01  /**<  major app version */

@@ -245,11 +245,13 @@ int tmf8829_app_process_irq( void *dptr )
     int inthandled = 0;
     tmf8829_chip *driver = (tmf8829_chip *)dptr ;
 
-    intStatus = tmf8829GetAndClrInterrupts( &driver->tof_core, TMF8829_APP_INT_RESULTS | TMF8829_APP_INT_HISTOGRAMS );
+    intStatus = tmf8829GetAndClrInterrupts( &driver->tof_core, TMF8829_APP_INT_ALL );
 
     if ( driver->tof_core.logLevel >= TMF8829_LOG_LEVEL_RESULTS )
     {
+        PRINT_STR( "Int:" );
         PRINT_INT(intStatus);
+        PRINT_CHAR( SEPARATOR );
     }
 
     if ( intStatus & TMF8829_APP_INT_RESULTS )   // check if a result is available
@@ -259,6 +261,33 @@ int tmf8829_app_process_irq( void *dptr )
         { 
             tof_queue_frame(driver);
         }
+      inthandled = 1;
+    }
+
+    if ( intStatus & TMF8829_APP_INT_MOTION )
+    { 
+      /*********************************************************************************************/
+      /* This MOTION DETECTION interrupt needs to be implemented by the customer if required !!!   */
+      /*********************************************************************************************/
+      if ( driver->tof_core.logLevel >= TMF8829_LOG_LEVEL_DEBUG )
+      {
+        PRINT_STR( "MOTION" );
+        PRINT_LN();
+      }
+      inthandled = 1;
+    }
+
+    if ( intStatus & TMF8829_APP_INT_PROXIMITY )
+    {
+      /*********************************************************************************************/
+      /* This PROXIMITY DETECTION interrupt needs to be implemented by the customer if required !!!*/
+      /*********************************************************************************************/
+      if ( driver->tof_core.logLevel >= TMF8829_LOG_LEVEL_DEBUG )
+      {
+        PRINT_STR( "PROX" );
+        PRINT_LN();
+        
+      }
       inthandled = 1;
     }
 

@@ -2,6 +2,11 @@
 Release Notes TMF8829 Linux Driver
 ===================================================
 ---------------------------------------------------
+- 2v2
+---------------------------------------------------
+- new hex file
+- prox and motion interrupt - show where to be implemented
+---------------------------------------------------
 - 2v1 - Release for ROM 1v1 parts
 ---------------------------------------------------
 - clk correction: wrong ratio fix
