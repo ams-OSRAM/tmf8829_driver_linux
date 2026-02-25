@@ -22,7 +22,12 @@
  *     ... clock correction
  *     ... probe error handling changed
  * 2.2 ... proximity and motion interrupt handling in core driver added
- * 
+ * 2.3 ... tof_register_spi_driver is done earlier in probe
+ *     ... in core driver: tmf8829StopMeasurement changed
+ *     ... in core driver: tmf8829DownloadFirmware powerup_select to RAM option
+ *     ... in core driver: wakeup with wait time and cpu ready check
+ *     ... tof_irq_handler... fix for int polling mode, standby timed and int handling
+ *     ... add compile time switch for 64 bit in shim layer for FW download, default is 32 bit
  */
 
 /*! \file tmf8829_driver.h - TMF8829 linux driver

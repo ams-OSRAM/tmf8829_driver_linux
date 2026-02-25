@@ -34,7 +34,11 @@
 
 /** @brief macros to cast a pointer to an address - adapt for your machine-word size
  */ 
+#if defined(__x86_64__) || defined(__aarch64__)
+#define PTR_TO_UINT(ptr)               ( (uint64_t)(ptr) )
+#else
 #define PTR_TO_UINT(ptr)               ( (uint32_t)(ptr) )
+#endif
 
 /** @brief macros to replace the platform specific printing
  */ 
@@ -75,7 +79,11 @@ uint32_t getSysTick( void );
  *  @param[in] address absolute memory address to read from
  * \return single byte from the given address 
  */
+#if defined(__x86_64__) || defined(__aarch64__)
+uint8_t readProgramMemoryByte( uint64_t address );
+#else
 uint8_t readProgramMemoryByte( uint32_t address );
+#endif
 
 /** @brief Function sets the enable pin HIGH. Note that the enable pin must be configured
  * for output (with e.g. function pinOutput)

@@ -639,22 +639,22 @@ static ssize_t app_tof_output_read(struct file *fp, struct kobject *kobj, struct
     elem_len = kfifo_peek_len(&chip->tof_output_fifo);
     
     if (elem_len > PAGE_SIZE) {
-        if (chip->tof_core.logLevel >= TMF8829_LOG_LEVEL_VERBOSE) {
+        if (chip->tof_core.logLevel >= TMF8829_LOG_LEVEL_DEBUG) {
             dev_info(dev, "frames to large: %u\n", elem_len); 
         }
         AMS_MUTEX_UNLOCK(&chip->fifo_lock);
         return -EBADE;
     }
 
-    if (chip->tof_core.logLevel >= TMF8829_LOG_LEVEL_VERBOSE) {
+    if (chip->tof_core.logLevel >= TMF8829_LOG_LEVEL_DEBUG) {
         dev_info(dev, "%s size: %u\n", __func__, (unsigned int) size);
     }
     if (kfifo_len(&chip->tof_output_fifo)) {
-        if (chip->tof_core.logLevel >= TMF8829_LOG_LEVEL_VERBOSE) {
+        if (chip->tof_core.logLevel >= TMF8829_LOG_LEVEL_DEBUG) {
             dev_info(dev, "fifo read elem_len: %u\n", elem_len);
         }
         read = kfifo_out(&chip->tof_output_fifo, buf, elem_len);
-        if (chip->tof_core.logLevel >= TMF8829_LOG_LEVEL_VERBOSE) {
+        if (chip->tof_core.logLevel >= TMF8829_LOG_LEVEL_DEBUG) {
             dev_info(dev, "fifo_len: %u\n", kfifo_len(&chip->tof_output_fifo));
         }
         AMS_MUTEX_UNLOCK(&chip->fifo_lock);
@@ -745,7 +745,7 @@ int tof_queue_frame(tmf8829_chip *chip)
     AMS_MUTEX_LOCK(&chip->fifo_lock);
 
     result = kfifo_in(&chip->tof_output_fifo, chip->tof_output_frame.buf, size);
-    if (chip->tof_core.logLevel >= TMF8829_LOG_LEVEL_INFO) {
+    if (chip->tof_core.logLevel >= TMF8829_LOG_LEVEL_DEBUG) {
         
         dev_info(&chip->client->dev, "Size %#x\n",size);
         dev_info(&chip->client->dev, "Fr Num %#x\n",chip->tof_output_frame.frame.frameNumber);
@@ -836,13 +836,19 @@ static irqreturn_t tof_irq_handler(int irq, void *dev_id)
     int handled;
     AMS_MUTEX_LOCK(&chip->lock);
 
-    if (chip->tof_core.logLevel & TMF8829_LOG_LEVEL_VERBOSE) {
+    if (chip->tof_core.logLevel >= TMF8829_LOG_LEVEL_DEBUG) {
         dev_info(&chip->client->dev, "irq_handler");
+    }
+    if(chip->poll_period != 0) { 
+        if (!tmf8829isDeviceWakeup(&chip->tof_core)) {
+            AMS_MUTEX_UNLOCK(&chip->lock);
+            return IRQ_HANDLED;
+        }
     }
     
     handled = tmf8829_app_process_irq(&chip->tof_core);
 
-    if (handled == 0) {
+    if ((handled == 0) && (chip->poll_period == 0)){ // not for polling the int register
         if (chip->tof_core.cyclicRunning) {
             dev_err(&chip->client->dev, "unknown irq");
         }
@@ -927,7 +933,7 @@ static ssize_t tof_misc_read(struct file *f, char *buf, size_t len, loff_t *off)
 
     dev_dbg(&chip->client->dev, "%s\n", __func__);
 
-    if (chip->tof_core.logLevel >= TMF8829_LOG_LEVEL_VERBOSE) {
+    if (chip->tof_core.logLevel >= TMF8829_LOG_LEVEL_DEBUG) {
         dev_info(&chip->client->dev, "read: %u\n", len);
     }
 
@@ -935,12 +941,12 @@ static ssize_t tof_misc_read(struct file *f, char *buf, size_t len, loff_t *off)
     while (kfifo_len(&chip->tof_output_fifo)) {
         elem_len = kfifo_peek_len(&chip->tof_output_fifo);
 
-        if (chip->tof_core.logLevel >= TMF8829_LOG_LEVEL_VERBOSE) {
+        if (chip->tof_core.logLevel >= TMF8829_LOG_LEVEL_DEBUG) {
             dev_info(&chip->client->dev, "fifo read elem_len: %u\n", elem_len);
         }
         ret = kfifo_to_user(&chip->tof_output_fifo, &buf[sum_copied], elem_len, &copied);
         sum_copied +=copied;
-        if (chip->tof_core.logLevel >= TMF8829_LOG_LEVEL_VERBOSE) {
+        if (chip->tof_core.logLevel >= TMF8829_LOG_LEVEL_DEBUG) {
             dev_info(&chip->client->dev, "fifo_len: %u\n", kfifo_len(&chip->tof_output_fifo));
         }
 
@@ -951,7 +957,7 @@ static ssize_t tof_misc_read(struct file *f, char *buf, size_t len, loff_t *off)
     
     AMS_MUTEX_UNLOCK(&chip->fifo_lock);
 
-    if (chip->tof_core.logLevel >= TMF8829_LOG_LEVEL_VERBOSE) {
+    if (chip->tof_core.logLevel >= TMF8829_LOG_LEVEL_DEBUG) {
         dev_info(&chip->client->dev, "copied: %u\n", sum_copied);
     }
 
@@ -1008,6 +1014,15 @@ static int tmf8829_probe(struct i2c_client *client, const struct i2c_device_id *
         goto gpio_err;
     }
 
+    /* set bustype; default is I2C, if SPI overlay file is found, SPI is used */
+    chip->bustype = BUS_I2C;
+
+    error = tof_register_spi_driver(chip);
+    if (error) {
+        dev_err(&client->dev, "Error tof_register_spi_driver");
+        goto spi_reg_err;
+    }
+
     /* Setup IRQ Handling */
     poll_prop_ptr = (void *)of_get_property(chip->client->dev.of_node, TOF_PROP_NAME_POLLIO, NULL);
     chip->poll_period = poll_prop_ptr ? be32_to_cpup(poll_prop_ptr) : 0;
@@ -1040,15 +1055,6 @@ static int tmf8829_probe(struct i2c_client *client, const struct i2c_device_id *
     chip->tof_output_frame.frame.reserved_1  = 0x77;
     chip->tof_output_frame.frame.payload_lsb = 0;
     chip->tof_output_frame.frame.payload_msb = 0;
-
-    /* set bustype; default is I2C, if SPI overlay file is found, SPI is used */
-    chip->bustype = BUS_I2C;
-
-    error = tof_register_spi_driver(chip);
-    if (error) {
-        dev_err(&client->dev, "Error tof_register_spi_driver");
-        goto spi_reg_err;
-    }
 
     /* TMF8829 Setup */
     AMS_MUTEX_LOCK(&chip->lock);
@@ -1246,4 +1252,4 @@ int tof_register_spi_driver(tmf8829_chip *tof_chip)
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("ams-OSRAM AG TMF8829 ToF sensor driver");
-MODULE_VERSION("2.2");
+MODULE_VERSION("2.3");

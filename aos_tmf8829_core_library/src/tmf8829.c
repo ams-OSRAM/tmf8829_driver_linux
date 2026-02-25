@@ -169,6 +169,7 @@
 #define FIFO__fifo_data__RESET 0
 
 #define TMF8829_ENABLE__cpu_ready__MASK          0x80
+#define TMF8829_ENABLE__powerup_select__MASK     0x30
 #define TMF8829_ENABLE__poff__MASK               0x08
 #define TMF8829_ENABLE__pon__MASK                0x04
 #define TMF8829_RESET__soft_reset__MASK          0x40
@@ -246,8 +247,6 @@ void tmf8829Initialise ( tmf8829Driver * driver )
   driver->device = tmf8829DeviceInfoReset;
   driver->info = tmf8829DriverInfoReset;
   driver->i2cSlaveAddress = TMF8829_SLAVE_ADDR;
-  driver->spiWriteCommand = SPI_WR_CMD;
-  driver->spiWriteCommand = SPI_RD_CMD;
   driver->clkCorrectionEnable = 1;
   driver->logLevel =TMF8829_LOG_LEVEL_ERROR;
   memset(driver->dataBuffer, 0, DATA_BUFFER_SIZE);
@@ -315,10 +314,11 @@ void tmf8829Standby ( tmf8829Driver * driver )
 void tmf8829PowerUp ( tmf8829Driver * driver ) 
 {
   driver->dataBuffer[0] = TMF8829_ENABLE__pon__MASK; //  set PON
+
   txReg( driver, driver->i2cSlaveAddress, ENABLE, 1, driver->dataBuffer ); // set PON bit in enable register
   delayInMicroseconds( ENABLE_TIME_MS * 1000 );
 
-  if ( driver->logLevel >= TMF8829_LOG_LEVEL_INFO ) 
+  if ( driver->logLevel >= TMF8829_LOG_LEVEL_ERROR ) 
   {
       rxReg( driver, driver->i2cSlaveAddress, ENABLE, 1, driver->dataBuffer ); //  for logging if desired
       PRINT_STR( "pwup ENABLE=0x" );
@@ -327,8 +327,25 @@ void tmf8829PowerUp ( tmf8829Driver * driver )
   }
 }
 
+int tmf8829isDeviceWakeup ( tmf8829Driver * driver )
+{ 
+  driver->dataBuffer[0] = 0; // clear before reading
+  rxReg( driver, driver->i2cSlaveAddress, ENABLE, 1, driver->dataBuffer ); // read the enable register to determine power state
+
+  if ( driver->dataBuffer[0] & TMF8829_ENABLE__cpu_ready__MASK )
+  {
+    return 1;
+  }
+  else
+  {
+    return 0;
+  }
+}
+
+
 void tmf8829Wakeup ( tmf8829Driver * driver )
 { 
+  int statcpu = 0;
   driver->dataBuffer[0] = 0; // clear before reading
   rxReg( driver, driver->i2cSlaveAddress, ENABLE, 1, driver->dataBuffer ); // read the enable register to determine power state
 
@@ -337,11 +354,25 @@ void tmf8829Wakeup ( tmf8829Driver * driver )
     driver->dataBuffer[0] = driver->dataBuffer[0] | ( ENABLE__powerup_select__RAM << ENABLE__powerup_select__SHIFT ); // select RAM
     driver->dataBuffer[0] = driver->dataBuffer[0] | TMF8829_ENABLE__pon__MASK;          // make sure to keep the remap bits
     txReg( driver, driver->i2cSlaveAddress, ENABLE, 1, driver->dataBuffer ); // set PON bit in enable register
-    if ( driver->logLevel >= TMF8829_LOG_LEVEL_VERBOSE ) 
+
+    statcpu =  tmf8829IsCpuReady(driver, ENABLE_TIME_MS );
+    if (statcpu == 1 )
     {
-      PRINT_STR( "PON=1" );
-      PRINT_LN( );
+      if ( driver->logLevel >= TMF8829_LOG_LEVEL_VERBOSE ) 
+      {
+        PRINT_STR( "PON=1" );
+        PRINT_LN( );
+      }
     }
+    else
+    {
+      if ( driver->logLevel >= TMF8829_LOG_LEVEL_ERROR ) 
+      {
+        PRINT_STR( "Wakeup Error" );
+        PRINT_LN( );
+      }
+    }
+
   }
   else
   {
@@ -577,6 +608,13 @@ int8_t tmf8829DownloadFirmware ( tmf8829Driver * driver, uint32_t imageStartAddr
         PRINT_STR( "FW downloaded" );
         PRINT_LN( );
       }
+      // Enable Register with RAM in powerup_select
+      driver->dataBuffer[0] = 0; // clear before reading
+      rxReg( driver, driver->i2cSlaveAddress, ENABLE, 1, driver->dataBuffer );
+      driver->dataBuffer[0] = driver->dataBuffer[0] & ( ~TMF8829_ENABLE__powerup_select__MASK ); // clear powerup_select
+      driver->dataBuffer[0] = driver->dataBuffer[0] | ( ENABLE__powerup_select__RAM << ENABLE__powerup_select__SHIFT ); // select RAM
+      txReg( driver, driver->i2cSlaveAddress, ENABLE, 1, driver->dataBuffer ); // set PON bit in enable register
+
       return stat;
     }
   }
@@ -797,6 +835,8 @@ int8_t tmf8829StartMeasurement ( tmf8829Driver * driver )
 
 int8_t tmf8829StopMeasurement ( tmf8829Driver * driver ) 
 {
+  tmf8829Wakeup(driver); // wake up device if it is in standby-timed mode
+
   driver->dataBuffer[0] = TMF8829_CMD_STAT__cmd_stat__CMD_STOP;
   txReg( driver, driver->i2cSlaveAddress, TMF8829_COM_REG_CMD_STAT, 1, driver->dataBuffer );
   driver->cyclicRunning = 0;
