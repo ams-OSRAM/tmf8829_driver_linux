@@ -32,10 +32,14 @@ extern "C" {
  *     .. handleReceivedHistogramDataEnd added (not used in linux driver)
  *     .. clock correction could be done in driver
  * 1.3 .. Motion and proximity interrupt added
+ * 1.4 .. tmf8829StopMeasurement add check for standby-timed mode
+ *     .. tmf8829DownloadFirmware powerup_select to RAM option 
+ *     .. wakeup with wait time and cpu ready check
+ *     .. tmf8829isDeviceWakeup added
 */
 
 #define TMF8829_DRIVER_MAJOR_VERSION  1
-#define TMF8829_DRIVER_MINOR_VERSION  3
+#define TMF8829_DRIVER_MINOR_VERSION  4
 
 // ---------------------------------------------- defines -----------------------------------------
 
@@ -224,8 +228,6 @@ typedef struct _tmf8829Driver
   uint16_t clkCorrRatioUQ;                       /**< clock ratio in UQ1.15 [0..2) */
   uint8_t clkCorrectionIdx;                      /**< index of the last inserted pair */
   uint8_t i2cSlaveAddress;                       /**< i2c slave address to talk to device */
-  uint8_t spiWriteCommand;                       /**< spi write address to talk to device */
-  uint8_t spiReadCommand;                        /**< spi read address to talk to device */
   uint8_t clkCorrectionEnable;                   /**< default is clock correction on  */
   uint8_t cyclicRunning;                         /**< 1 for ongoing cyclic measurement, otherwise 0 */
   uint8_t logLevel;                              /**< how chatty the program is */
@@ -281,7 +283,12 @@ void tmf8829Standby( tmf8829Driver * driver );
  */ 
 void tmf8829PowerUp( tmf8829Driver * driver );
 
-/** @brief  Function to wake the device up from standby mode
+/** @brief  Function to check if device is wake up.
+ * driver ... pointer to an instance of the tmf8829 driver data structure
+ */ 
+int tmf8829isDeviceWakeup( tmf8829Driver * driver );
+
+/** @brief  Function to wake the device up from standby mode.
  * driver ... pointer to an instance of the tmf8829 driver data structure
  */ 
 void tmf8829Wakeup( tmf8829Driver * driver );
@@ -330,6 +337,7 @@ void tmf8829SetUint16( uint16_t value, uint8_t * data );
 
 /** @brief  Function to download the firmware image that was linked against the firmware (tmf8829_image.{h,c} files)
  * The function tmf8829BootloaderStartRamApp is executed after successful download.
+ * powerup_select in the ENABLE register to RAM
  * @param driver ... pointer to an instance of the tmf8829 driver data structure
  * @param imageStartAddress ... destination in RAM to which the image shall be downloaded
  * @param image ... pointer to the character array that represents the downloadable image

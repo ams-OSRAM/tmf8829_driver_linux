@@ -42,12 +42,21 @@ uint32_t getSysTick ( void ) //Note: is only for 70 minutes
     return (uint32_t)ktime_us;
 }
 
+#if defined(__x86_64__) || defined(__aarch64__)
+uint8_t readProgramMemoryByte ( uint64_t address )
+{
+    uint64_t *ptr = (void *) address;
+    uint8_t byte = *ptr;
+    return byte;
+}
+#else
 uint8_t readProgramMemoryByte ( uint32_t address )
 {
     uint32_t *ptr = (void *) address;
     uint8_t byte = *ptr;
     return byte;
 }
+#endif
 
 int8_t txReg ( void *dptr, uint8_t slaveAddr, uint8_t regAddr, uint16_t toTx, const uint8_t *txData )
 {
@@ -180,7 +189,7 @@ int8_t i2cTxReg ( void *dptr, uint8_t slaveAddr, uint8_t regAddr, uint16_t toTx,
         return I2C_ERROR;
     }
 
-    if ( driver->tof_core.logLevel & TMF8829_LOG_LEVEL_I2C ) 
+    if ( driver->tof_core.logLevel >= TMF8829_LOG_LEVEL_I2C ) 
     { 
         strsize = scnprintf(debug, sizeof(debug), "i2cTx: Reg:%02x Len:%hx Dat: ", regAddr, toTx);
         for(idx = 0; idx < toTx; idx++)
@@ -208,7 +217,7 @@ int8_t i2cRxReg ( void *dptr, uint8_t slaveAddr, uint8_t regAddr, uint16_t toRx,
         return I2C_ERROR;
     }
     
-    if ( driver->tof_core.logLevel & TMF8829_LOG_LEVEL_I2C ) 
+    if ( driver->tof_core.logLevel >= TMF8829_LOG_LEVEL_I2C ) 
     {
         strsize = scnprintf(debug, sizeof(debug), "i2cRx: Reg:%02x Len:%hx Dat:", regAddr, toRx);
         for(idx = 0; idx < toRx; idx++)
