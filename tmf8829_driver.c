@@ -1312,4 +1312,4 @@ module_spi_driver(tmf8829_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("ams-OSRAM AG TMF8829 ToF sensor driver");
-MODULE_VERSION("2.3");
+MODULE_VERSION("2.4");
