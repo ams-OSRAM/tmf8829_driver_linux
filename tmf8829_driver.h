@@ -28,10 +28,15 @@
  *     ... in core driver: wakeup with wait time and cpu ready check
  *     ... tof_irq_handler... fix for int polling mode, standby timed and int handling
  *     ... add compile time switch for 64 bit in shim layer for FW download, default is 32 bit
+ * 2.4 ... seperate i2c and spi
+ *     ... probe function: no dev_info for the IRQ Error EBUSY anymore.
  */
 
 /*! \file tmf8829_driver.h - TMF8829 linux driver
  * \brief Device driver for measuring distance in mm.
+ *
+ *  The tmf8829 can be used with an SPI or I2C communication interface.
+ *  The EXTRA_CFLAGS: USE_I2C or USE_SPI which are defined in Kbuild are used to build an I2C or SPI driver.
  */
 
 #ifndef TMF8829_DRIVER_H
@@ -55,9 +60,6 @@
 #define TOF_PROP_NAME_POLLIO  "tof,tof_poll_period"  // property in overlay file
 #define MAX_PAYLOAD_SIZE      (PAGE_SIZE * 8 - 2000) // enough for 2 histogram frames 
 #define DRIVER_HEADER_SIZE    8                      // header for every output frame
-
-#define BUS_I2C               1
-#define BUS_SPI               2
 
 /* -------------------------------- macros ---------------------------------- */
 #define AMS_MUTEX_LOCK(m) { \
@@ -94,15 +96,16 @@ struct tmf8829_platform_data {
 typedef struct _tmf8829_chip
 {
     tmf8829Driver tof_core; // first item in the structure!! pointer to this stucture is pointer to tmf8829_chip structure
-
+#ifdef USE_I2C
     struct i2c_client *client;
-    struct spi_device *spi_dev;
-    struct spi_driver spi_drv;
+#endif
+#ifdef USE_SPI    
+    struct spi_device *client;
+#endif
     struct miscdevice tof_mdev;
     struct mutex lock;
     struct mutex fifo_lock;
     struct tmf8829_platform_data *pdata;
-    uint8_t bustype;
     uint8_t shadow[256];
     STRUCT_KFIFO_REC_2(PAGE_SIZE * 32) tof_output_fifo;
     struct task_struct *app_poll_irq;
@@ -111,8 +114,6 @@ typedef struct _tmf8829_chip
 }tmf8829_chip;
 
 /* -------------------------------- functions ------------------------------- */
-extern int tof_register_spi_driver(tmf8829_chip *tof_chip);
-
 /**
  * tof_queue_frame - queue data of buffer into output fifo
  *

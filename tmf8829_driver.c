@@ -44,6 +44,12 @@ static struct tmf8829_platform_data tmf8829_pdata = {
     .ram_patch_fname = { "tmf8829_application.hex", },
 };
 
+#ifdef USE_I2C /* only one interface is allowed */
+#ifdef USE_SPI
+#error
+#endif
+#endif
+
 /**************************************************************************/
 /*  TMF8829 Common Functions                                              */
 /**************************************************************************/
@@ -640,7 +646,7 @@ static ssize_t app_tof_output_read(struct file *fp, struct kobject *kobj, struct
     
     if (elem_len > PAGE_SIZE) {
         if (chip->tof_core.logLevel >= TMF8829_LOG_LEVEL_DEBUG) {
-            dev_info(dev, "frames to large: %u\n", elem_len); 
+            dev_info(dev, "frames to large: %zd\n", elem_len); 
         }
         AMS_MUTEX_UNLOCK(&chip->fifo_lock);
         return -EBADE;
@@ -651,7 +657,7 @@ static ssize_t app_tof_output_read(struct file *fp, struct kobject *kobj, struct
     }
     if (kfifo_len(&chip->tof_output_fifo)) {
         if (chip->tof_core.logLevel >= TMF8829_LOG_LEVEL_DEBUG) {
-            dev_info(dev, "fifo read elem_len: %u\n", elem_len);
+            dev_info(dev, "fifo read elem_len: %zd\n", elem_len);
         }
         read = kfifo_out(&chip->tof_output_fifo, buf, elem_len);
         if (chip->tof_core.logLevel >= TMF8829_LOG_LEVEL_DEBUG) {
@@ -811,8 +817,8 @@ static int tof_get_gpio_config(tmf8829_chip *tof_chip)
 
     if (IS_ERR(gpiod)) {
         error = PTR_ERR(gpiod);
-        dev_info(&tof_chip->client->dev, "Error: Irq. %d \n", error);
         if (PTR_ERR(gpiod) != -EBUSY) { //for ICAM on this pin there is an Error (from ACPI), but it is working
+            dev_info(&tof_chip->client->dev, "Error: Irq. %d \n", error);
             return error;
         }
     }
@@ -874,8 +880,15 @@ static int tof_request_irq(tmf8829_chip *tof_chip)
 
     dev_info(&tof_chip->client->dev, "irq: %d, trigger_type: %lu", irq, default_trigger);
 
+#ifdef USE_I2C
     return devm_request_threaded_irq(&tof_chip->client->dev, tof_chip->client->irq, NULL, tof_irq_handler,
                                     default_trigger | IRQF_SHARED | IRQF_ONESHOT, tof_chip->client->name, tof_chip);
+#endif 
+#ifdef USE_SPI
+    return devm_request_threaded_irq(&tof_chip->client->dev, tof_chip->client->irq, NULL, tof_irq_handler,
+                                    default_trigger | IRQF_SHARED | IRQF_ONESHOT, tof_chip->client->modalias, tof_chip);
+#endif 
+
 }
 
 /**
@@ -934,7 +947,7 @@ static ssize_t tof_misc_read(struct file *f, char *buf, size_t len, loff_t *off)
     dev_dbg(&chip->client->dev, "%s\n", __func__);
 
     if (chip->tof_core.logLevel >= TMF8829_LOG_LEVEL_DEBUG) {
-        dev_info(&chip->client->dev, "read: %u\n", len);
+        dev_info(&chip->client->dev, "read: %zu\n", len);
     }
 
     AMS_MUTEX_LOCK(&chip->fifo_lock);
@@ -942,7 +955,7 @@ static ssize_t tof_misc_read(struct file *f, char *buf, size_t len, loff_t *off)
         elem_len = kfifo_peek_len(&chip->tof_output_fifo);
 
         if (chip->tof_core.logLevel >= TMF8829_LOG_LEVEL_DEBUG) {
-            dev_info(&chip->client->dev, "fifo read elem_len: %u\n", elem_len);
+            dev_info(&chip->client->dev, "fifo read elem_len: %zd\n", elem_len);
         }
         ret = kfifo_to_user(&chip->tof_output_fifo, &buf[sum_copied], elem_len, &copied);
         sum_copied +=copied;
@@ -972,56 +985,28 @@ static const struct file_operations tof_miscdev_fops = {
     .llseek         = no_llseek,
 };
 
-/**
-* I2C Device 
-*/
-
-static int tmf8829_probe(struct i2c_client *client, const struct i2c_device_id *idp)
+static int tmf8829_probe(tmf8829_chip *chip)
 {
-    tmf8829_chip *chip;
-    int error = 0;
+    int error = -1;
     void *poll_prop_ptr = NULL;
-
-    /* Check I2C functionality */
-    dev_info(&client->dev, "I2C Address: %#04x\n", client->addr);
-    if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
-        dev_err(&client->dev, "I2C check functionality failed.\n");
-        return -ENXIO;
-    }
-    
-    /* Memory Alloc */
-    chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
-    if (!chip) {
-        dev_err(&client->dev, "Mem kzalloc failed. \n");
-        return -ENOMEM;
-    }
 
     /* Platform Setup */
     mutex_init(&chip->lock);
     mutex_init(&chip->fifo_lock);
     
-    chip->client = client;
-    i2c_set_clientdata(client, chip);
+
     chip->pdata = &tmf8829_pdata;
     error = tof_get_gpio_config(chip);
     if (error) {
-        dev_err(&client->dev, "Error gpio config.\n");
+        dev_err(&chip->client->dev, "Error gpio config.\n");
         goto gpio_err;
     }
     
     if (writePin( chip->pdata->gpiod_enable, 1)) {
-        dev_err(&client->dev, "Chip enable failed.\n");
+        dev_err(&chip->client->dev, "Chip enable failed.\n");
         goto gpio_err;
     }
-
-    /* set bustype; default is I2C, if SPI overlay file is found, SPI is used */
-    chip->bustype = BUS_I2C;
-
-    error = tof_register_spi_driver(chip);
-    if (error) {
-        dev_err(&client->dev, "Error tof_register_spi_driver");
-        goto spi_reg_err;
-    }
+    dev_info(&chip->client->dev, "Chip enable done.\n");
 
     /* Setup IRQ Handling */
     poll_prop_ptr = (void *)of_get_property(chip->client->dev.of_node, TOF_PROP_NAME_POLLIO, NULL);
@@ -1031,7 +1016,7 @@ static int tmf8829_probe(struct i2c_client *client, const struct i2c_device_id *
         if (chip->pdata->gpiod_interrupt) {
             error = tof_request_irq(chip);
             if (error) {
-                dev_err(&client->dev, "Interrupt request failed.\n");
+                dev_err(&chip->client->dev, "Interrupt request failed.\n");
                 goto gpio_err;
             }
         }
@@ -1039,7 +1024,7 @@ static int tmf8829_probe(struct i2c_client *client, const struct i2c_device_id *
     else { /* Polled I/O */
         chip->app_poll_irq = kthread_run(tmf8829_app_poll_irq_thread, (void *)chip, "tof-irq_poll");
         if (IS_ERR(chip->app_poll_irq)) {
-            dev_err(&client->dev, "Error starting IRQ polling thread.\n");
+            dev_err(&chip->client->dev, "Error starting IRQ polling thread.\n");
             error = PTR_ERR(chip->app_poll_irq);
             goto gpio_err;
         }
@@ -1065,54 +1050,49 @@ static int tmf8829_probe(struct i2c_client *client, const struct i2c_device_id *
     tmf8829PowerUp(&chip->tof_core);
 
     if (tmf8829IsCpuReady(&chip->tof_core, CPU_READY_TIME_MS) == 0) {
-        dev_err(&client->dev, "CPU is not ready.\n");
+        dev_err(&chip->client->dev, "CPU is not ready.\n");
         error = 5;
         goto gen_err;
     }
 
     /* switch off unused communication interface */
-    if (chip->bustype == BUS_I2C) {
-        error = tmf8829BootloaderCmdSpiOff(&chip->tof_core);
-    }
-    else if  (chip->bustype == BUS_SPI) {
-        error = tmf8829BootloaderCmdI2cOff(&chip->tof_core);
-    }
-    else {
-        dev_err(&client->dev, "Bus not supported.\n");
-        error = 1;
-    }
+#ifdef USE_I2C
+    error = tmf8829BootloaderCmdSpiOff(&chip->tof_core);
+#endif
+#ifdef USE_SPI
+    error = tmf8829BootloaderCmdI2cOff(&chip->tof_core);
+#endif
+
     if (error != BL_SUCCESS_OK) {
-        dev_err(&client->dev, "error disable communication interface .\n");
+        dev_err(&chip->client->dev, "error disable communication interface .\n");
         goto gen_err;
     }
 
-    error = firmware_download(&client->dev);
+    error = firmware_download(&chip->client->dev); 
     
     if (error != 0) {
         goto gen_err;
     }
     else {
-        dev_info(&client->dev, "Firmware download done.\n");
+        dev_info(&chip->client->dev, "Firmware download done.\n");
     }
 
     if (tmf8829GetConfiguration(&chip->tof_core) != APP_SUCCESS_OK) {
-        dev_err(&client->dev, "Read device configuration error.\n");
+        dev_err(&chip->client->dev, "Read device configuration error.\n");
         goto gen_err;
     }
 
     if (tmf8829ReadDeviceInfo( &chip->tof_core) != APP_SUCCESS_OK) {
-        dev_err(&client->dev, "Read device information.\n");
+        dev_err(&chip->client->dev, "Read device information.\n");
         goto gen_err;
     }
     chip->tof_core.cyclicRunning = 0;
     tmf8829ClrAndEnableInterrupts( &chip->tof_core, TMF8829_APP_INT_ALL );
 
-    AMS_MUTEX_UNLOCK(&chip->lock);
-
     /* Sysfs Setup */
-    error = sysfs_create_groups(&client->dev.kobj, tmf8829_attr_groups);
+    error = sysfs_create_groups(&chip->client->dev.kobj, tmf8829_attr_groups);
     if (error) {
-        dev_err(&client->dev, "Error creating sysfs attribute group.\n");
+        dev_err(&chip->client->dev, "Error creating sysfs attribute group.\n");
         goto sysfs_err;
     }
 
@@ -1123,66 +1103,107 @@ static int tmf8829_probe(struct i2c_client *client, const struct i2c_device_id *
 	error = misc_register(&chip->tof_mdev);
 
     if (error) {
-        dev_err(&client->dev, "Error registering misc_dev.\n");
+        dev_err(&chip->client->dev, "Error registering misc_dev.\n");
         goto misc_reg_err;
     }
 
-    dev_info(&client->dev, "Probe pass.\n");
+    dev_info(&chip->client->dev, "Probe pass.\n");
+
+    AMS_MUTEX_UNLOCK(&chip->lock);
+
     return 0;
 
     /* Probe error handling */
 misc_reg_err:
 sysfs_err:
-    sysfs_remove_groups(&client->dev.kobj, tmf8829_attr_groups);
+    sysfs_remove_groups(&chip->client->dev.kobj, tmf8829_attr_groups);
 gen_err:
-spi_reg_err:
-    spi_unregister_driver(&chip->spi_drv);
+    AMS_MUTEX_UNLOCK(&chip->lock);
     if (chip->poll_period != 0) {
         (void)kthread_stop(chip->app_poll_irq);
     }
 gpio_err:
-    dev_err(&client->dev, "Probe failed.\n");
-    enablePinLow(chip);
-    i2c_set_clientdata(client, NULL);
-    AMS_MUTEX_UNLOCK(&chip->lock);
 
+    enablePinLow(chip);
+    AMS_MUTEX_UNLOCK(&chip->lock);
     return error;
 }
 
-static void tmf8829_remove(struct i2c_client *client)
+static void tmf8829_remove( tmf8829_chip *chip )
 {
-    tmf8829_chip *chip = i2c_get_clientdata(client);
-
     tmf8829StopMeasurement(&chip->tof_core);
 
     if (chip->pdata->gpiod_interrupt != 0 && (PTR_ERR(chip->pdata->gpiod_interrupt) != -EBUSY)) {
-        dev_info(&client->dev, "clear gpio irqdata %s\n", __func__);
-        devm_free_irq(&client->dev, client->irq, chip);
-        dev_info(&client->dev, "put %s\n", __func__);
-        devm_gpiod_put(&client->dev, chip->pdata->gpiod_interrupt);
+        dev_info(&chip->client->dev, "clear gpio irqdata %s\n", __func__);
+        devm_free_irq(&chip->client->dev, chip->client->irq, chip);
+        dev_info(&chip->client->dev, "put %s\n", __func__);
+        devm_gpiod_put(&chip->client->dev, chip->pdata->gpiod_interrupt);
     }
     if (chip->poll_period != 0) {
         (void)kthread_stop(chip->app_poll_irq);
     }
     if (chip->pdata->gpiod_enable) {
-        dev_info(&client->dev, "clear gpio enable %s\n", __func__);
+        dev_info(&chip->client->dev, "clear gpio enable %s\n", __func__);
         gpiod_direction_output(chip->pdata->gpiod_enable, 0);
-        devm_gpiod_put(&client->dev, chip->pdata->gpiod_enable);
+        devm_gpiod_put(&chip->client->dev, chip->pdata->gpiod_enable);
     }
     misc_deregister(&chip->tof_mdev);
-    dev_info(&client->dev, "clear sys attr %s\n", __func__);
-    sysfs_remove_groups(&client->dev.kobj, tmf8829_attr_groups);
-    dev_info(&client->dev, "%s\n", __func__);
-    i2c_set_clientdata(client, NULL);
+    dev_info(&chip->client->dev, "clear sys attr %s\n", __func__);
+    sysfs_remove_groups(&chip->client->dev.kobj, tmf8829_attr_groups);
+    dev_info(&chip->client->dev, "%s\n", __func__);
 
-    spi_unregister_driver(&chip->spi_drv);
     return;
 }
 
 /**************************************************************************/
 /* Linux Driver Specific Code                                             */
 /**************************************************************************/
-/** I2C **/
+
+#ifdef USE_I2C /** Extra flag for using the I2C interface. see Kbuild **/
+
+static int tof_i2c_probe(struct i2c_client *client, const struct i2c_device_id *idp)
+{
+    int error = 0;
+    tmf8829_chip *chip;
+	
+    /* Check I2C functionality */
+    dev_info(&client->dev, "I2C Address: %#04x\n", client->addr);
+    if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
+        dev_err(&client->dev, "I2C check functionality failed.\n");
+        return -ENXIO;
+    }
+    
+    /* Memory Alloc */
+    chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
+    if (!chip) {
+        dev_err(&client->dev, "Mem kzalloc failed. \n");
+        return -ENOMEM;
+    }
+	
+	chip->client = client;
+    i2c_set_clientdata(client, chip);
+	
+    error = tmf8829_probe(chip);
+
+    if (error)
+    {
+        i2c_set_clientdata(client, NULL);
+        dev_err(&client->dev, "tof_i2c_probe FAILED.\n");  
+    }
+    else
+    {
+        dev_info(&client->dev, "tof_i2c_probe SUCCESS.\n");  
+    }
+    return error;
+}
+
+static void tof_i2c_remove(struct i2c_client *client)
+{
+    tmf8829_chip *chip = i2c_get_clientdata(client);
+    tmf8829_remove(chip);
+    i2c_set_clientdata(client, NULL);
+}
+
 static struct i2c_device_id tmf8829_idtable[] = {
     { "tmf8829", 0 },
     { }
@@ -1202,24 +1223,28 @@ static struct i2c_driver tmf8829_driver = {
         .of_match_table = of_match_ptr(tmf8829_of_match),
     },
     .id_table = tmf8829_idtable,
-    .probe = tmf8829_probe,
-    .remove = tmf8829_remove,
+    .probe = tof_i2c_probe,
+    .remove = tof_i2c_remove,
 };
 
 module_i2c_driver(tmf8829_driver);
 
-/** SPI **/
-static const struct of_device_id tof_spi_ids[] = {
-    { .compatible = "ams,tmf8829_spi" },
-    { }
-};
+#endif /* USE_I2C */
 
-MODULE_DEVICE_TABLE(of, tof_spi_ids);
+#ifdef USE_SPI /** Extra flag for using the SPI interface. see Kbuild **/
 
 static int tof_spi_probe(struct spi_device *spi)
 {
+    tmf8829_chip *chip;
+    int error = 0;
     int ret;
-    tmf8829_chip* chip = container_of(spi->dev.driver, tmf8829_chip, spi_drv.driver);
+    /* Memory Alloc */
+    chip = devm_kzalloc(&spi->dev, sizeof(*chip), GFP_KERNEL);
+    if (!chip) {
+        dev_err(&spi->dev, "Mem kzalloc failed. \n");
+        return -ENOMEM;
+    }
+
     spi->bits_per_word = 8;
     spi->mode = 0;
 
@@ -1228,25 +1253,60 @@ static int tof_spi_probe(struct spi_device *spi)
         return ret;
     }
     if (spi == NULL) {
-        dev_err(&chip->client->dev, "Error tof_spi_probe failed");
+        dev_err(&spi->dev, "spi setup failed");
     } else {
-        chip->spi_dev = spi;
-        dev_info(&chip->client->dev, "tof_spi_probe SUCCESS");
+
+        dev_info(&spi->dev, "spi setup done");
     }
-    
-    chip->bustype = BUS_SPI;
-        
-    return 0;
+
+    spi_set_drvdata(spi, chip);
+    chip->client = spi;
+
+    error = tmf8829_probe(chip);
+
+    if (error)
+    {
+        spi_set_drvdata(spi, NULL);
+    }
+    else
+    {
+        if (spi == NULL) {
+            dev_err(&spi->dev, "tof_spi_probe FAILED");
+        }
+        else {
+            dev_info(&spi->dev, "tof_spi_probe SUCCESS");
+        }
+    }
+    return error;
 }
 
-int tof_register_spi_driver(tmf8829_chip *tof_chip)
+static void tof_spi_remove(struct spi_device *spi)
 {
-    struct spi_driver *spidrv = (struct spi_driver *)&tof_chip->spi_drv;
-    spidrv->driver.name = "tmf8829_spi";
-    spidrv->probe = tof_spi_probe;
-    spidrv->driver.of_match_table = tof_spi_ids;
-    return spi_register_driver(spidrv);
+    tmf8829_chip *chip = spi_get_drvdata(spi);
+    tmf8829_remove(chip);
+    spi_set_drvdata(spi, NULL);
+
+}
+
+static const struct of_device_id tof_spi_ids[] = {
+    { .compatible = "ams,tmf8829_spi" },
+    { }
 };
+
+MODULE_DEVICE_TABLE(of, tof_spi_ids);
+
+static struct spi_driver tmf8829_driver = {
+    .driver = {
+        .name = "tmf8829_spi",
+        .of_match_table = of_match_ptr(tof_spi_ids),
+    },
+    .probe = tof_spi_probe,
+    .remove = tof_spi_remove,
+};
+
+module_spi_driver(tmf8829_driver);
+
+#endif /* USE_SPI */
 
 /** MODULE **/
 

@@ -6,6 +6,12 @@
 # this script run with su privilege.
 set -e
 
+if grep -Fxq "dtoverlay=gpio-ir-tx,gpio_pin=25" /boot/firmware/config.txt
+then
+    echo "0. Need to modify /boot/firmware/config.txt"
+	sed -i 's/dtoverlay=gpio-ir-tx,gpio_pin=25/#dtoverlay=gpio-ir-tx,gpio_pin=25/' /boot/firmware/config.txt
+fi
+
 if grep -Fxq "dtoverlay=i2c0,pins_28_29" /boot/firmware/config.txt
 then
     echo "1. No need to modify /boot/firmware/config.txt"
@@ -32,6 +38,6 @@ fi
 
 cp tmf8829-overlay-fpc-polled.dtbo /boot/overlays/
 cp tmf8829_application.hex /lib/firmware/tmf8829_application.hex
-cp tmf8829.ko /opt/USBSensorBridgeRuntime/modules/
+cp i2c/tmf8829.ko /opt/USBSensorBridgeRuntime/modules/
 cp ams-usb-sensorbridge.service /etc/systemd/system
 cp tmf8829_zmq_server.service /etc/systemd/system/
