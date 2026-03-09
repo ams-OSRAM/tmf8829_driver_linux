@@ -3,27 +3,65 @@
 ## Description
 
 This file describes the installation of the tmf8829 linux reference driver, and how to use it.
+There is also a description for using python files contained in the tmf8829_zeromq_server_linux folder.
+
+Information regarding the TMF8829 time of flight device can be found at:
+https://ams-osram.com/products/sensor-solutions/direct-time-of-flight-sensors-dtof/ams-tmf8829-48x32-multi-zone-time-of-flight-sensor
 
 ### Compilation
 
 The compilation was done with the ams-Osram provided image bookworm_4v0.
 Linux version 6.1.73-ams #1 Mon Apr 22 19:32:02 BST 2024 2024 armv6l
 
+The reference driver could be build as I2C or SPI driver.
+See EXTRA_CFLAGS in Kbuild.
+For I2C use: EXTRA_CFLAGS += -DUSE_I2C
+For SPI use: EXTRA_CFLAGS += -DUSE_SPI
+
+For compilation on the bookworm image use the command:
+- make CONFIG_SENSORS_TMF8829=m
+
+For compilation on an other image it is required to adapt the linux source path.
+The linux sources could be found in the folder "/usr/src".
+The LINUX_SRC path in the file Makefile must be adapted, or the LINUX_SRC path must be specified in the command.
+
+Examples:
+- make CONFIG_SENSORS_TMF8829=m LINUX_SRC=/usr/src/linux-$(uname -r)
+- make CONFIG_SENSORS_TMF8829=m LINUX_SRC=/usr/src/linux-headers-$(uname -r)
+- make CONFIG_SENSORS_TMF8829=m LINUX_SRC=/usr/src/linux-6.1.73-ams
+
+### Linux Driver Sources
+
+The Linux Driver Sources could be found on GITHUB:
+
+- https://github.com/ams-OSRAM/tmf8829_driver_linux
+
+with
+
+- git clone https://github.com/ams-OSRAM/tmf8829_driver_linux.git
+
+or from the TMF8829 product site.
+
 ## Files
     
-Overlay Files
+Overlay Files <br>
 The device tree overlay files for the tmf8829 prototyped on the Raspberry Pi zero.
+<br>
     - tmf8829-overlay-fpc.dts
         evm configuration with flex printed circuit, EN gpio and INT gpio, I2C
+<br>
     - tmf8829-overlay-fpc-polled.dts
         evm configuration with flex printed circuit, EN gpio and INT register polled, I2C
+<br>
     - tmf8829-overlay-fpc-spi.dts
         evm configuration with flex printed circuit, EN gpio and INT gpio, SPI
+<br>
     - tmf8829-overlay-fpc-spi-polled.dts
         evm configuration with flex printed circuit, EN gpio and INT register polled, SPI
 
 Module File
-    - tmf8829.ko
+    - tmf8829.ko for SPI
+    - tmf8829.ko for I2C
 
 ams Raspberry USB Sensorbridge
     - ams-usb-sensorbridge.service
@@ -66,6 +104,7 @@ Configuration of Raspberry Pi zero:
      - tmf8829-overlay-fpc-spi.dtbo for spi communication
      - tmf8829-overlay-fpc-polled.dtbo for i2c communication and int register polling
      - tmf8829-overlay-fpc-spi-polled.dtbo for spi communication and int register polling
+     - tmf8829-overlay-fpc-spi-polled-fusion.dts special overlay file
 
    - Hex File ( if required )
 
@@ -91,14 +130,18 @@ Configuration of Raspberry Pi zero:
    <br>or
    - ./tmf8829_install_spi_polled_int.sh
 
-7. Optional:<br> If the python zmq server sources will be installed
+7. for I2C driver:
+   - open /boot/firmware/config.txt
+   uncomment line dtoverlay=gpio-ir-tx,gpio_pin=25
+
+8. Optional:<br> If the python zmq server sources will be installed
    and the server should be started at boot time, enable the zmq service.
       
    - systemctl enable tmf8829_zmq_server.service
 
-8. sync
+9. sync
 
-9. reboot (reboot system)
+10. reboot (reboot system)
 
 ## General commands on the Raspberry Pi
 
@@ -143,11 +186,7 @@ Configuration of Raspberry Pi zero:
 
     - ps -ef
 
-8. Makefile command for TMF8829
-
-    - make CONFIG_SENSORS_TMF8829=m
-
-9. The overlay file could be changed
+8. The overlay file could be changed
 
     - copy overlay file to boot directory
     
@@ -167,24 +206,25 @@ Configuration of Raspberry Pi zero:
 
     - echo "dtoverlay=tmf8829-overlay" >> /boot/firmware/config.txt
    
-10. Change and see log level
+9. Change and see log level
      
     - echo <level> > /proc/sys/kernel/printk
     - cat /proc/sys/kernel/printk
 
-11. See temperature and cpu frequency
+10. See temperature and cpu frequency
 
     - vcgencmd measure_temp
     - vcgencmd measure_clock arm
 
-12. Change raspberry configuration
+11. Change raspberry configuration
 
     - sudo raspi-config
 
-13. see the running services
+12. see the running services
 
     - systemctl
-14. start / stop the running tmf8829 zmq service
+
+13. start / stop the running tmf8829 zmq service
 
     - systemctl start tmf8829_zmq_server.service
     - systemctl stop tmf8829_zmq_server.service
@@ -202,7 +242,9 @@ https://www.raspberrypi.com/documentation/computers/raspberry-pi.html
 
 ## System File System
 
-- I2C Bus 0 (fpc): /sys/class/i2c-adapter/i2c-0/0-0041/
+File System location:
+- I2C Driver: I2C Bus 0 (fpc): /sys/class/i2c-adapter/i2c-0/0-0041/
+- SPI Driver: SPI Dev 0: /sys/class/spi_master/spi0/spi0.0/
 
 ### Common Attributes (tmf8829_common)
 
@@ -366,7 +408,7 @@ Attributes:
     - FrameID:
         - TMF8829_COM_RESULT__measurement_res_frame  0xAA /**< measurement result frame */
         - TMF8829_COM_RESULT__measurement_hist_frame 0xBB /**< measurement histogram frame */
-        - TMF8829_COM_RESULT__measurement_header      0xFD /**< measurement frame header only; for debug only should never occur in result frame */
+        - TMF8829_COM_RESULT__measurement_header     0xFD /**< measurement frame header only; for debug only should never occur in result frame */
         - TMF8829_COM_RESULT__error_frame            0xFE /**< error frame */
         - TMF8829_COM_RESULT__no_frame               0xFF /**< no frame / unhandled interrupt */
     -  The clock correction factor is only available for result frames in Q1.15 numbering format.
@@ -439,7 +481,7 @@ The logger description README.md in the folder /home/ams/tmf8829_zeromq_server_l
  python ./tmf8829_zeromq_client.py
  ```
 
-
 ### GUI
 
 The TMF8829 EVM GUI could be used to see the results on a pc.
+This software could be downloaded from the product site. See section "Software".

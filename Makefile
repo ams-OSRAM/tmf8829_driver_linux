@@ -18,7 +18,8 @@ all:
 	dtc -@ -I dts -O dtb -o ./arch/arm/boot/dts/tmf8829-overlay-fpc-polled.dtbo ./arch/arm/boot/dts/tmf8829-overlay-fpc-polled.dts
 	dtc -@ -I dts -O dtb -o ./arch/arm/boot/dts/tmf8829-overlay-fpc-spi.dtbo ./arch/arm/boot/dts/tmf8829-overlay-fpc-spi.dts
 	dtc -@ -I dts -O dtb -o ./arch/arm/boot/dts/tmf8829-overlay-fpc-spi-polled.dtbo ./arch/arm/boot/dts/tmf8829-overlay-fpc-spi-polled.dts
-
+	dtc -@ -I dts -O dtb -o ./arch/arm/boot/dts/tmf8829-overlay-fpc-spi-polled-fusion.dtbo ./arch/arm/boot/dts/tmf8829-overlay-fpc-spi-polled-fusion.dts
+	
 modules:
 	$(MAKE) -C $(LINUX_SRC) M=$$PWD $@
 

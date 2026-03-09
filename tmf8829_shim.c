@@ -61,53 +61,37 @@ uint8_t readProgramMemoryByte ( uint32_t address )
 int8_t txReg ( void *dptr, uint8_t slaveAddr, uint8_t regAddr, uint16_t toTx, const uint8_t *txData )
 {
     tmf8829_chip *driver = (tmf8829_chip *)dptr;
-    if (driver->bustype == BUS_I2C)
-    {
-      return i2cTxReg(driver, 0, regAddr, toTx, txData);
-    }
-    else if (driver->bustype == BUS_SPI)
-    {
-      return spiTxReg(driver, regAddr , txData, toTx);
-    }
-    else
-    {
-        return UNSUPPORTED_BUS_ERROR;
-    }
+#ifdef USE_I2C
+    return i2cTxReg(driver, regAddr, toTx, txData);
+#endif
+#ifdef USE_SPI
+    return spiTxReg(driver, regAddr , txData, toTx);
+#endif
 }
 
 int8_t rxReg ( void *dptr, uint8_t slaveAddr, uint8_t regAddr, uint16_t toRx, uint8_t *rxData )
 {
     tmf8829_chip *driver = (tmf8829_chip *)dptr;
-    if (driver->bustype == BUS_I2C)
-    {
-      return i2cRxReg(driver, 0, regAddr, toRx, rxData);
-    }
-    else if (driver->bustype == BUS_SPI)
-    {
-      return spiRxReg(driver, regAddr, rxData, toRx);
-    }
-    else
-    {
-        return UNSUPPORTED_BUS_ERROR;
-    }
+#ifdef USE_I2C
+    return i2cRxReg(driver, regAddr, toRx, rxData);
+#endif
+#ifdef USE_SPI
+    return spiRxReg(driver, regAddr, rxData, toRx);
+#endif
 }
 
 int8_t regWriteMask ( void * dptr, uint8_t slaveAddr, char reg, char val, char mask)
 {
     tmf8829_chip *driver = (tmf8829_chip *)dptr;
-    if (driver->bustype == BUS_I2C)
-    {
-      return i2c_write_mask(driver->client, reg, val, mask);
-    }
-    else if (driver->bustype == BUS_SPI)
-    {
-      return spi_write_mask(driver, reg, val, mask);
-    }
-    else
-    {
-        return UNSUPPORTED_BUS_ERROR;
-    }
+#ifdef USE_I2C
+    return i2c_write_mask(driver->client, reg, val, mask);
+#endif
+#ifdef USE_SPI
+    return spi_write_mask(driver, reg, val, mask);
+#endif
 }
+
+#ifdef USE_SPI
 
 int spiTxReg ( void *dptr, uint8_t regAddr, const char *data, size_t len )
 {
@@ -124,7 +108,7 @@ int spiTxReg ( void *dptr, uint8_t regAddr, const char *data, size_t len )
 
     memcpy(&wrbuf[2], data, len);
 
-    ret = spi_write(driver->spi_dev, wrbuf, len + 2);
+    ret = spi_write(driver->client, wrbuf, len + 2);
     if (ret < 0)
     {
         dev_err(&driver->client->dev, "Error: %d\n", ret);
@@ -147,7 +131,7 @@ int spiRxReg ( void *dptr, uint8_t regAddr, void *rxData, size_t len )
     wrbuf[1] = regAddr;
     wrbuf[2] = 0;          // dummy
 
-    ret = spi_write_then_read(driver->spi_dev, &wrbuf, 3, buf, len);
+    ret = spi_write_then_read(driver->client, &wrbuf, 3, buf, len);
 
     if (ret < 0)
     {
@@ -175,7 +159,11 @@ int spi_write_mask ( void *dptr, char reg, char val, char mask )
   return ret;
 }
 
-int8_t i2cTxReg ( void *dptr, uint8_t slaveAddr, uint8_t regAddr, uint16_t toTx, const uint8_t *txData )
+#endif /* USE_SPI */
+
+#ifdef USE_I2C
+
+int8_t i2cTxReg ( void *dptr, uint8_t regAddr, uint16_t toTx, const uint8_t *txData )
 {  
     tmf8829_chip *driver = (tmf8829_chip *)dptr;
     int error;
@@ -202,7 +190,7 @@ int8_t i2cTxReg ( void *dptr, uint8_t slaveAddr, uint8_t regAddr, uint16_t toTx,
     return I2C_SUCCESS;
 }
 
-int8_t i2cRxReg ( void *dptr, uint8_t slaveAddr, uint8_t regAddr, uint16_t toRx, uint8_t *rxData )
+int8_t i2cRxReg ( void *dptr, uint8_t regAddr, uint16_t toRx, uint8_t *rxData )
 {
     tmf8829_chip *driver = (tmf8829_chip *)dptr;
     int error;
@@ -230,10 +218,7 @@ int8_t i2cRxReg ( void *dptr, uint8_t slaveAddr, uint8_t regAddr, uint16_t toRx,
     return I2C_SUCCESS;
 }
 
-int8_t i2cTxRx( void *dptr, uint8_t slaveAddr, uint16_t toTx, const uint8_t *txData, uint16_t toRx, uint8_t *rxData )
-{
-  return I2C_ERROR;  //not implemented
-}
+#endif /* USE_I2C */
 
 int enablePinHigh ( void *dptr )
 {

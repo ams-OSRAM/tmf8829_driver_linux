@@ -2,6 +2,21 @@
 Release Notes TMF8829 Linux Driver
 ===================================================
 ---------------------------------------------------
+- 2v4
+---------------------------------------------------
+- separation of I2C and SPI driver.
+  In Kbuild the flag USE_I2C or DUSE_SPI is used
+- In probe function, the Irq Error is not reported anymore.
+  This error does not have an impact on the driver and is misleading.
+---------------------------------------------------
+- 2v3
+---------------------------------------------------
+- in probe do tof_register_spi_driver earlier.
+- Stop Measurement check for standby-timed mode
+- powerup_select to RAM option at tmf8829DownloadFirmware
+- wakeup with wait time and cpu ready check
+- Int polling mode fix
+---------------------------------------------------
 - 2v2
 ---------------------------------------------------
 - new hex file

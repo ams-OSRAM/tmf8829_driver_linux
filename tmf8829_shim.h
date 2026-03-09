@@ -144,6 +144,9 @@ int8_t regWriteMask( void * dptr, uint8_t slaveAddr, char reg, char val, char ma
 #define SPI_SUCCESS             0       /**< successful execution no error */
 #define SPI_ERROR              -1       /**< spi error */
 
+
+#ifdef USE_SPI
+
 /** @brief SPI transmit only function.
  * @param[in] dptr a pointer to a data structure the function needs for transmitting, can
  * be 0-pointer if the function does not need it
@@ -173,13 +176,15 @@ int spiRxReg( void * dptr, uint8_t regAddr, void *rxData, size_t len );
  * \return 0 when successfully received, else an error code
  */ 
 int spi_write_mask( void * dptr, char reg, char val, char mask );
-
+#endif /* USE_SPI */
 // ---------------------------------- I2C functions ---------------------------------------------
 
 /**  Return codes for i2c functions: 
  */
 #define I2C_SUCCESS             0       /**< successful execution no error */
 #define I2C_ERROR              -1       /**< i2c error */
+
+#ifdef USE_I2C
 
 /** There are 2 styles of functions available:
  * 1. those that always require a register address to be specified: i2cTxReg, i2cRxReg
@@ -191,37 +196,25 @@ int spi_write_mask( void * dptr, char reg, char val, char mask );
 /** @brief I2C transmit only function.
  * @param[in] dptr a pointer to a data structure the function needs for transmitting, can
  * be 0-pointer if the function does not need it
- * @param[in] slaveAddr the i2c slave address to be used (7-bit unshifted)
  * @param[in] regAddr the register to start writing to
  * @param[in] toTx number of bytes in the buffer to transmit
  * @param[in] txData pointer to the buffer to transmit
  * \return 0 when successfully transmitted, else an error code
  */ 
-int8_t i2cTxReg( void * dptr, uint8_t slaveAddr, uint8_t regAddr, uint16_t toTx, const uint8_t * txData );
+int8_t i2cTxReg( void * dptr, uint8_t regAddr, uint16_t toTx, const uint8_t * txData );
 
 /** @brief I2C transmit register address and receive function.
  * @param[in] dptr a pointer to a data structure the function needs for receiving, can
  * be 0-pointer if the function does not need it
- * @param slaveAddr the i2c slave address to be used (7-bit)
  * @param regAddr the register address to start reading from
  * @param toRx number of bytes in the buffer to receive
  * @param rxData pointer to the buffer to be filled with received bytes
  * \return 0 when successfully received, else an error code
  */ 
-int8_t i2cRxReg( void * dptr, uint8_t slaveAddr, uint8_t regAddr, uint16_t toRx, uint8_t * rxData );
+int8_t i2cRxReg( void * dptr, uint8_t regAddr, uint16_t toRx, uint8_t * rxData );
 
-/** @brief I2C transmit and receive function.
- * @param dptr a pointer to a data structure the function needs for transmitting, can
- * be 0-pointer if the function does not need it
- * @param slaveAddr the i2c slave address to be used (7-bit)
- * @param toTx number of bytes in the buffer to transmit (set to 0 if receive only)
- * @param txData pointer to the buffer to transmit
- * @param toRx number of bytes in the buffer to receive (set to 0 if transmit only)
- * @param rxData pointer to the buffer to be filled with received bytes
- * \return 0 when successfully transmitted and received, else an error code
- */ 
-int8_t i2cTxRx( void * dptr, uint8_t slaveAddr, uint16_t toTx, const uint8_t * txData, uint16_t toRx, uint8_t * rxData );
 
+#endif /* USE_I2C */
 /* --------------------- functions used by the application only (not driver) -------------------------------- */
 
 /** @brief Process the irq, readout of data

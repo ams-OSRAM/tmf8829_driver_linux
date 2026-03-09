@@ -313,6 +313,20 @@ int8_t tmf8829BootloaderCmdSpiOff( tmf8829Driver * driver );
  */ 
 int8_t tmf8829BootloaderCmdI2cOff( tmf8829Driver * driver );
 
+/** @brief Function set ram address to write
+ * @param driver ... pointer to an instance of the tmf8829 driver data structure
+ * @param addr ..... ram address to write
+ * @return Function returns APP_SUCCESS_OK if successfully set ram address, else  it returns an error APP_ERROR_TIMEOUT
+ */
+int8_t tmf8829BootloaderSetRamAddr ( tmf8829Driver * driver, uint32_t addr );
+
+/** @brief Function writes data to both CPU RAMs in parallel
+ * @param driver ... pointer to an instance of the tmf8829 driver data structure
+ * @param len ...... number of bytes to write
+ * @return Function returns APP_SUCCESS_OK if successfully write data to ram, else  it returns an error APP_ERROR_TIMEOUT
+ */
+int8_t tmf8829BootloaderWriteRamBoth ( tmf8829Driver * driver, uint8_t len );
+
 // ------------------------------- convenience functions --------------------------------------------
 
 /** @brief Convert 4 bytes in little endian format into an uint32_t
@@ -335,6 +349,18 @@ void tmf8829SetUint16( uint16_t value, uint8_t * data );
 
 // ------------------------------- bootloader functions --------------------------------------------
 
+/** @brief Function starts ram application
+ * @param driver ... pointer to an instance of the tmf8829 driver data structure
+ * @return Function returns APP_SUCCESS_OK if successfully start ram application, else  it returns an error APP_ERROR_*
+ */
+int8_t tmf8829BootloaderStartRamApp ( tmf8829Driver * driver );
+
+/** @brief Function starts ram application and enable Register with RAM in powerup_select
+ * @param driver ... pointer to an instance of the tmf8829 driver data structure
+ * @return Function returns APP_SUCCESS_OK if successfully start ram application, else  it returns an error APP_ERROR_*
+ */
+int8_t tmf8829BootloaderStartRamAppAndPowerOn ( tmf8829Driver * driver );
+
 /** @brief  Function to download the firmware image that was linked against the firmware (tmf8829_image.{h,c} files)
  * The function tmf8829BootloaderStartRamApp is executed after successful download.
  * powerup_select in the ENABLE register to RAM
@@ -350,7 +376,6 @@ int8_t tmf8829DownloadFirmware( tmf8829Driver * driver, uint32_t imageStartAddre
 // ------------------------------- application functions --------------------------------------------
 
 // Application functions are only available after a successful firmware download and a successful start of the ram app.
-
 /** @brief Function reads complete device information
  * @param driver ... pointer to an instance of the tmf8829 driver data structure
  * @return Function returns APP_SUCCESS_OK if successfully read the complete device information, else  it returns an error APP_ERROR_* 

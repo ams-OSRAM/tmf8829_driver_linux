@@ -21,13 +21,6 @@
   compatible = "brcm,bcm2835","brcm,bcm2708","brcm,bcm2709";
 
   fragment@0 {
-    target = <&i2c0>;
-    __overlay__ {
-      status = "okay";
-    };
-  };
-
-  fragment@1 {
     target = <&gpio>;
     __overlay__ {
       tmf8829_pins: tmf8829_pins {
@@ -38,38 +31,20 @@
     };
   };
 
-  fragment@2 {
-    target = <&i2c0>;
-    __overlay__ {
-      #address-cells = <1>;
-      #size-cells = <0>;
-      status = "okay";
-
-      tmf8829: tmf8829@41 {
-        compatible = "ams,tmf8829";
-        reg = <0x41>; /* x41 for HW */
-        pinctrl-names = "default";
-        pinctrl-0 = <&tmf8829_pins>;
-        tof,tof_poll_period = <0xA>; /*poll period (100 usec)*/
-        enable-gpios = <&gpio 40 0>; /* CAM_GPIO1 on header*/
-      };
-    };
-  };
-
-fragment@3 {
+  fragment@1 {
         target = <&spidev0>;
         __overlay__ {
             status = "disabled";
         };
-    };  
-fragment@4 {
+  };  
+  fragment@2 {
     target = <&spidev1>;
     __overlay__ {
         status = "disabled";
     };
-};
+  };
 
-  fragment@5 {
+  fragment@3 {
     target = <&spi0>;
     __overlay__ {
       #address-cells = <1>;
@@ -80,14 +55,15 @@ fragment@4 {
         compatible = "ams,tmf8829_spi";
         reg = <0>;
         spi-max-frequency = <20000000>;
+        
+        pinctrl-names = "default";
+        pinctrl-0 = <&tmf8829_pins>;
+        tof,tof_poll_period = <0xA>; /*poll period (100 usec)*/
+        enable-gpios = <&gpio 40 0>; /* CAM_GPIO1 on header*/
+
       };
     };
   };
-  __overrides__ {
-    tof_poll_period = <&tmf8829>,"tof,tof_poll_period:0";
-    tof_enable = <&tmf8829_pins>,"brcm,pins:4",
-        <&tmf8829>,"enable-gpios:4";
-    tof_i2c_addr = <&tmf8829>,"reg:0";
+
   };
-};
 
