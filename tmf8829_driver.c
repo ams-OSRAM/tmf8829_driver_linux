@@ -982,7 +982,7 @@ static const struct file_operations tof_miscdev_fops = {
     .read           = tof_misc_read,
     .open           = tof_misc_open,
     .release        = tof_misc_release,
-    .llseek         = no_llseek,
+    .llseek         = noop_llseek,
 };
 
 static int tmf8829_probe(tmf8829_chip *chip)
