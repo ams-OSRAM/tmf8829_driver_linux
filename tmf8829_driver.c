@@ -633,7 +633,7 @@ static ssize_t clk_correction_store(struct device * dev, struct device_attribute
 }
 
 
-static ssize_t app_tof_output_read(struct file *fp, struct kobject *kobj, struct bin_attribute *attr,
+static ssize_t app_tof_output_read(struct file *fp, struct kobject *kobj, const struct bin_attribute *attr,
                                    char *buf, loff_t off, size_t size)
 {
     struct device *dev = kobj_to_dev(kobj);
@@ -711,7 +711,7 @@ static DEVICE_ATTR_WO(config_mode);
 static DEVICE_ATTR_WO(clk_correction);
 static BIN_ATTR_RO(app_tof_output, 0);
 
-static struct bin_attribute *tof_app_bin_attrs[] = {
+static const struct bin_attribute *tof_app_bin_attrs[] = {
   &bin_attr_app_tof_output,
   NULL,
 };
