@@ -8,6 +8,8 @@ There is also a description for using python files contained in the tmf8829_zero
 Information regarding the TMF8829 time of flight device can be found at:
 https://ams-osram.com/products/sensor-solutions/direct-time-of-flight-sensors-dtof/ams-tmf8829-48x32-multi-zone-time-of-flight-sensor
 
+For newer kernel versions (e.g. 6.18.29 or higher), please see changes from branch [dev_fix_kbuild](https://github.com/ams-OSRAM/tmf8829_driver_linux/compare/v2.4...dev_fix_kbuild), which might break compiling with older kernel versions builds.
+
 ### Compilation
 
 The compilation was done with the ams-Osram provided image bookworm_4v0.
