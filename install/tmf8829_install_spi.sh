@@ -33,5 +33,5 @@ fi
 cp tmf8829-overlay-fpc-spi.dtbo /boot/overlays/
 cp tmf8829_application.hex /lib/firmware/tmf8829_application.hex
 cp spi/tmf8829.ko /opt/USBSensorBridgeRuntime/modules/
-cp ams-usb-sensorbridge.service /etc/systemd/system
+cp ams-usb-sensorbridge.service /etc/systemd/system/
 cp tmf8829_zmq_server.service /etc/systemd/system/

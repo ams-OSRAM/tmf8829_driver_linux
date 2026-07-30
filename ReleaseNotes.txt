@@ -2,6 +2,13 @@
 Release Notes TMF8829 Linux Driver
 ===================================================
 ---------------------------------------------------
+- 2v5
+---------------------------------------------------
+- new hex file
+- polling thread: poll period fix
+- AMS_MUTEX_UNLOCK in probe changed
+- changes for newer Linux versions
+---------------------------------------------------
 - 2v4
 ---------------------------------------------------
 - separation of I2C and SPI driver.

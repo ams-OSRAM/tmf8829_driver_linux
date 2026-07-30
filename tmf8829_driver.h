@@ -30,6 +30,11 @@
  *     ... add compile time switch for 64 bit in shim layer for FW download, default is 32 bit
  * 2.4 ... seperate i2c and spi
  *     ... probe function: no dev_info for the IRQ Error EBUSY anymore.
+ * 2.5 ... in tmf8829_app_poll_irq_thread the period calculation was wrong
+ *     ... probe function last AMS_MUTEX_UNLOCK(&chip->lock); removed
+ *     ... .llseek = noop_llseek for misc driver, for new linux version
+ *     ... Kbuild uses ccflags instead of EXTRA_CFLAGS, for new linux version
+ *     ... compile time switch for bin_attribute
  */
 
 /*! \file tmf8829_driver.h - TMF8829 linux driver
