@@ -408,12 +408,26 @@ int8_t tmf8829CmdWritePage( tmf8829Driver * driver );
  */
 int8_t tmf8829GetConfiguration(tmf8829Driver * driver);
 
+/** @brief  Loads the Command Page and stores the data in the driver parameter config. Read data in small blocks.
+ * @param driver .......pointer to an instance of the tmf8829 driver data structure
+ * @param segment_size .number of bytes in one transmission
+ * @return Function returns APP_SUCCESS_OK if successfully executed, else it returns an error
+ */
+int8_t tmf8829GetConfigurationInSegments (tmf8829Driver * driver, uint16_t segment_size);
+
 /** @brief  The config parameters of the driver are written to the device.
  * The function tmf8829GetConfiguration should be called before to have the right page loaded
  * @param driver ... pointer to an instance of the tmf8829 driver data structure
  * @return Function returns APP_SUCCESS_OK if successfully executed, else it returns an error
  */
 int8_t tmf8829SetConfiguration(tmf8829Driver * driver);
+
+/** @brief  The config parameters of the driver are written to the device. Write data in small blocks.
+ * @param driver .......pointer to an instance of the tmf8829 driver data structure
+ * @param segment_size .number of bytes in one transmission
+ * @return Function returns APP_SUCCESS_OK if successfully executed, else it returns an error
+ */
+int8_t tmf8829SetConfigurationInSegments ( tmf8829Driver * driver, uint16_t segment_size);
 
 /** @brief  Function to start a measurement
  * @param driver ... pointer to an instance of the tmf8829 driver data structure

@@ -817,11 +817,69 @@ int8_t tmf8829GetConfiguration (tmf8829Driver * driver)
   return stat;
 }
 
+int8_t tmf8829GetConfigurationInSegments (tmf8829Driver * driver, uint16_t segment_size)
+{
+  int8_t stat = tmf8829CmdLoadConfigPage( driver ); // first load the page, then only overwrite the registers you want to change 
+  uint16_t totalBlocks = TMF8829_CFG_PAGE_SIZE/segment_size;
+  uint16_t remainingBytes = TMF8829_CFG_PAGE_SIZE%segment_size;
+
+  if ( stat == APP_SUCCESS_OK )
+  {
+    for(uint8_t index = 0; index < totalBlocks; index++){
+      rxReg( driver, driver->i2cSlaveAddress, TMF8829_CFG_PERIOD_MS_LSB+(index*segment_size), segment_size, &driver->config[index*segment_size]);
+    }
+    if(remainingBytes > 0){
+      rxReg( driver, driver->i2cSlaveAddress, TMF8829_CFG_PERIOD_MS_LSB+(totalBlocks*segment_size), remainingBytes, &driver->config[totalBlocks*segment_size]);
+    }
+  }
+  if ( stat != APP_SUCCESS_OK )
+  {
+    if ( driver->logLevel >=TMF8829_LOG_LEVEL_ERROR )
+    {
+      PRINT_STR( "#Err" );
+      PRINT_CHAR( SEPARATOR );
+      PRINT_STR( " Get Configuration " );
+      PRINT_INT( stat );
+      PRINT_LN( );
+    }
+  }
+  return stat;
+}
+
 int8_t tmf8829SetConfiguration ( tmf8829Driver * driver )
 {
   int8_t stat = APP_ERROR_PARAM;
 
   txReg( driver, driver->i2cSlaveAddress, TMF8829_CFG_PERIOD_MS_LSB, TMF8829_CFG_PAGE_SIZE, driver->config );
+  stat = tmf8829CmdWritePage( driver );  // as a last step write the config page back
+
+  if ( stat != APP_SUCCESS_OK )
+  {
+    if ( driver->logLevel >=TMF8829_LOG_LEVEL_ERROR )
+    {
+      PRINT_STR( "#Err" );
+      PRINT_CHAR( SEPARATOR );
+      PRINT_STR( "Config " );
+      PRINT_INT( stat );
+      PRINT_LN( );
+    }
+  }
+  return stat;
+}
+
+int8_t tmf8829SetConfigurationInSegments ( tmf8829Driver * driver, uint16_t segment_size)
+{
+  int8_t stat = APP_ERROR_PARAM;
+  uint16_t totalBlocks = TMF8829_CFG_PAGE_SIZE/segment_size;
+  uint16_t remainingBytes = TMF8829_CFG_PAGE_SIZE%segment_size;
+
+  for(uint8_t index = 0; index < totalBlocks; index++){
+    txReg( driver, driver->i2cSlaveAddress, TMF8829_CFG_PERIOD_MS_LSB+(index*segment_size), segment_size, &driver->config[index*segment_size]);
+  }
+  if(remainingBytes > 0){
+    txReg( driver, driver->i2cSlaveAddress, TMF8829_CFG_PERIOD_MS_LSB+(totalBlocks*segment_size), remainingBytes, &driver->config[totalBlocks*segment_size]);
+  }
+
   stat = tmf8829CmdWritePage( driver );  // as a last step write the config page back
 
   if ( stat != APP_SUCCESS_OK )

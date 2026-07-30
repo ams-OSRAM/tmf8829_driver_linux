@@ -30,6 +30,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/printk.h>
 #include <linux/poll.h>
+#include <linux/version.h>
 
 #include "tmf8829_driver.h"
 #include "tmf8829_hex_interpreter.h"
@@ -632,9 +633,13 @@ static ssize_t clk_correction_store(struct device * dev, struct device_attribute
     return count;
 }
 
-
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(6,18,0)
 static ssize_t app_tof_output_read(struct file *fp, struct kobject *kobj, struct bin_attribute *attr,
                                    char *buf, loff_t off, size_t size)
+#else
+static ssize_t app_tof_output_read(struct file *fp, struct kobject *kobj, const struct bin_attribute *attr,
+                                   char *buf, loff_t off, size_t size)
+#endif
 {
     struct device *dev = kobj_to_dev(kobj);
     tmf8829_chip *chip = dev_get_drvdata(dev);
@@ -711,7 +716,11 @@ static DEVICE_ATTR_WO(config_mode);
 static DEVICE_ATTR_WO(clk_correction);
 static BIN_ATTR_RO(app_tof_output, 0);
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6,18,0)
 static struct bin_attribute *tof_app_bin_attrs[] = {
+#else
+static const struct bin_attribute *tof_app_bin_attrs[] = {
+#endif
   &bin_attr_app_tof_output,
   NULL,
 };
@@ -904,11 +913,11 @@ static int tmf8829_app_poll_irq_thread(void *tof_chip)
     tmf8829_chip *chip = (tmf8829_chip *)tof_chip;
     int us_sleep = 0;
     int period = chip->tof_core.config[TMF8829_CFG_PERIOD_MS_MSB-TMF8829_CFG_PERIOD_MS_LSB] * 256;
-    period += chip->tof_core.config[TMF8829_CFG_PERIOD_MS_LSB];
+    period += chip->tof_core.config[TMF8829_CFG_PERIOD_MS_LSB-TMF8829_CFG_PERIOD_MS_LSB];
     AMS_MUTEX_LOCK(&chip->lock);
 
     us_sleep = period * 1000;// Poll period is interpreted in units of 100 usec
-    if (us_sleep == 0 ) {
+    if (us_sleep < 10000 ) {
         us_sleep = 10000;
     }
     dev_info(&chip->client->dev, "Starting ToF irq polling thread, period: %u us\n", us_sleep);
@@ -1125,7 +1134,6 @@ gen_err:
 gpio_err:
 
     enablePinLow(chip);
-    AMS_MUTEX_UNLOCK(&chip->lock);
     return error;
 }
 
@@ -1312,4 +1320,4 @@ module_spi_driver(tmf8829_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("ams-OSRAM AG TMF8829 ToF sensor driver");
-MODULE_VERSION("2.4");
+MODULE_VERSION("2.5");
