@@ -380,6 +380,7 @@ Attributes:
         - 0x46 ... CMD_LOAD_CFG_32X32_HIGH_ACCURACY
         - 0x47 ... CMD_LOAD_CFG_48X32
         - 0x48 ... CMD_LOAD_CFG_48X32_HIGH_ACCURACY
+        - 0x49 ... CMD_LOAD_CFG_8X8_EXTENDED_RANGE
 
 9. clk_correction (W)
 

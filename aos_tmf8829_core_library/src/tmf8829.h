@@ -36,6 +36,7 @@ extern "C" {
  *     .. tmf8829DownloadFirmware powerup_select to RAM option 
  *     .. wakeup with wait time and cpu ready check
  *     .. tmf8829isDeviceWakeup added
+ * 1.5 .. TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_8X8_EXTENDED_RANGE define added
 */
 
 #define TMF8829_DRIVER_MAJOR_VERSION  1
@@ -170,6 +171,7 @@ extern "C" {
 #define TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_32X32_HIGH_ACCURACY  0x46  // Preconfigure for 32x32 short range mode and load configuration page
 #define TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_48X32                0x47  // Preconfigure for 48x32 default mode and load configuration page
 #define TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_48X32_HIGH_ACCURACY  0x48  // Preconfigure for 48x32 short range mode and load configuration page
+#define TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_8X8_EXTENDED_RANGE   0x49  // Preconfigure for 8x8 extended range mode and load configuration page
 #define TMF8829_CMD_STAT__cmd_stat__CMD_STOP                          0xff  // Stop a measurement
 
 // application status, we check only for ok or accepted, otherwise it is an error
