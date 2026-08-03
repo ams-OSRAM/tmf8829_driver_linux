@@ -604,7 +604,7 @@ static ssize_t config_mode_store(struct device *dev, struct device_attribute *at
         return -EINVAL;
     
     if ((cmd < TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_8X8) || 
-        (cmd > TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_48X32_HIGH_ACCURACY)) {
+        (cmd > TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_8X8_EXTENDED_RANGE)) {
         return -EINVAL;
     }
     AMS_MUTEX_LOCK(&chip->lock);  
@@ -1320,4 +1320,4 @@ module_spi_driver(tmf8829_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("ams-OSRAM AG TMF8829 ToF sensor driver");
-MODULE_VERSION("2.5");
+MODULE_VERSION("2.6");

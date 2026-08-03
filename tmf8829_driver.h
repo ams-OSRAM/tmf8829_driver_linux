@@ -35,6 +35,7 @@
  *     ... .llseek = noop_llseek for misc driver, for new linux version
  *     ... Kbuild uses ccflags instead of EXTRA_CFLAGS, for new linux version
  *     ... compile time switch for bin_attribute
+ * 2.6 ... config_mode_store changed, CMD_LOAD_CFG_8X8_EXTENDED_RANGE mode possible
  */
 
 /*! \file tmf8829_driver.h - TMF8829 linux driver
