@@ -2,6 +2,15 @@
 Release Notes TMF8829 Linux Driver
 ===================================================
 ---------------------------------------------------
+- 2v7
+---------------------------------------------------
+- for configuration settings via sysfs, improved handling for invalid sizes.
+- firmware download verification added if the RAM option is used.
+- module probe: error handling improved
+- bugfix in function spiTxReg 
+- bugfix in tmf8829DisableInterrupts
+
+---------------------------------------------------
 - 2v6
 ---------------------------------------------------
 - config mode for CMD_LOAD_CFG_8X8_EXTENDED_RANGE possible

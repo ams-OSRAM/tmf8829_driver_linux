@@ -37,10 +37,13 @@ extern "C" {
  *     .. wakeup with wait time and cpu ready check
  *     .. tmf8829isDeviceWakeup added
  * 1.5 .. TMF8829_CMD_STAT__cmd_stat__CMD_LOAD_CFG_8X8_EXTENDED_RANGE define added
+ * 1.6 .. function tmf8829BootloaderReadRam added
+ *     .. verification of FW download is done if writting to Ram option is used
+ * 1.7 .. bugfix in tmf8829DisableInterrupts
 */
 
 #define TMF8829_DRIVER_MAJOR_VERSION  1
-#define TMF8829_DRIVER_MINOR_VERSION  4
+#define TMF8829_DRIVER_MINOR_VERSION  7
 
 // ---------------------------------------------- defines -----------------------------------------
 
@@ -59,10 +62,17 @@ extern "C" {
 #define ENABLE_TIME_MS             3                   /**< wait time after enable pin is high */
 #define CPU_READY_TIME_MS          3                   /**< wait time for CPU ready */
 
+/* bootloader */
+#define SYS_OTHER_CPU_RAM           0x01000000         /**<  if this bit is set, the RAM of the other CPU is addressed */
+
 /* return codes from the bootloader */
 #define BL_SUCCESS_OK              0                   /**< success */
 #define BL_ERROR_CMD              -1                   /**< command/communication failed */
 #define BL_ERROR_TIMEOUT          -2                   /**< communication timeout */
+
+/* return codes from the firmware download */
+#define FW_DOWNLOAD_VERIFY_CPU0   -3                   /**< fw download error cpu 0 */
+#define FW_DOWNLOAD_VERIFY_CPU1   -4                   /**< fw download error cpu 1 */
 
 /* return codes from the measurement application */
 #define APP_SUCCESS_OK            (BL_SUCCESS_OK)     /**< success */
@@ -80,9 +90,9 @@ extern "C" {
 #define TMF8829_APP_INT_ALL       ( TMF8829_APP_INT_RESULTS | TMF8829_APP_INT_MOTION  | TMF8829_APP_INT_PROXIMITY | TMF8829_APP_INT_HISTOGRAMS )
 
 /* application registers */
-#define TMF8829_APP_ID                          0x01  /**<  major app version */
-#define TMF8829_MAJOR                           0x02  /**<  minor app version */
-#define TMF8829_MINOR                           0x04  /**<  status of application */
+#define TMF8829_APP_ID                          0x01  /**<  application id */
+#define TMF8829_MAJOR                           0x02  /**<  major app version */
+#define TMF8829_MINOR                           0x04  /**<  minor app version */
 #define TMF8829_MEASURE_STATUS                  0x05  /**<  status of measurement */
 #define TMF8829_SERIAL_NUMBER_0                 0x1c  /**<  register with serial number */
 #define TMF8829_CID_RID                         0x20  /**<  loaded page */
@@ -328,6 +338,14 @@ int8_t tmf8829BootloaderSetRamAddr ( tmf8829Driver * driver, uint32_t addr );
  * @return Function returns APP_SUCCESS_OK if successfully write data to ram, else  it returns an error APP_ERROR_TIMEOUT
  */
 int8_t tmf8829BootloaderWriteRamBoth ( tmf8829Driver * driver, uint8_t len );
+
+/** @brief Function reads data from CPU RAM.
+ * @param driver ... pointer to an instance of the tmf8829 driver data structure
+ * @param len ...... number of bytes to read
+ * @param buf ...... pointer to the data buffer 
+ * @return Function returns BL_SUCCESS_OK if successfully read data from ram, else it returns an error BL_ERROR_CMD
+ */
+int8_t tmf8829BootloaderReadRam( tmf8829Driver * driver, uint8_t len, uint8_t * buf );
 
 // ------------------------------- convenience functions --------------------------------------------
 

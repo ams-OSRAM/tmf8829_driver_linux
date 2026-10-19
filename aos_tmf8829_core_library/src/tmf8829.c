@@ -207,6 +207,7 @@
 #define BL_CMD_START_RAM_APP_MS                  3  // wait times
 #define BL_CMD_SET_ADDR_TIMEOUT_MS               3
 #define BL_CMD_W_RAM_TIMEOUT_MS                  3 
+#define BL_CMD_R_RAM_TIMEOUT_MS                  3 
 #define BL_CMD_W_FIFO_TIMEOUT_MS                 3 
 #define BL_CMD_TIMEOUT_MS                        3 
 
@@ -506,7 +507,7 @@ int8_t tmf8829BootloaderSetRamAddr ( tmf8829Driver * driver, uint32_t addr )
   driver->dataBuffer[5] = ( addr >> 24 ) & 0xff;
 
   txReg( driver, driver->i2cSlaveAddress, TMF8829_COM_REG_CMD_STAT, 6, driver->dataBuffer );
-  return tmf8829CheckRegister( driver, TMF8829_COM_REG_CMD_STAT, TMF8829_COM_BL_STAT_READY, 3, BL_CMD_SET_ADDR_TIMEOUT_MS );
+  return tmf8829CheckRegister( driver, TMF8829_COM_REG_CMD_STAT, TMF8829_COM_BL_STAT_READY, 1, BL_CMD_SET_ADDR_TIMEOUT_MS );
 }
 
 // writes to both CPU RAMs in parallel
@@ -516,6 +517,29 @@ int8_t tmf8829BootloaderWriteRamBoth ( tmf8829Driver * driver, uint8_t len )
   driver->dataBuffer[1] = len; // payload
   txReg( driver, driver->i2cSlaveAddress, TMF8829_COM_REG_CMD_STAT, 2 + len, driver->dataBuffer );
   return tmf8829CheckRegister( driver, TMF8829_COM_REG_CMD_STAT, TMF8829_COM_BL_STAT_READY, 1, BL_CMD_W_RAM_TIMEOUT_MS );
+}
+
+int8_t tmf8829BootloaderReadRam( tmf8829Driver * driver, uint8_t len, uint8_t * buf ) 
+{
+  driver->dataBuffer[0] = TMF8829_COM_BL_CMD_STAT_R_RAM;
+  driver->dataBuffer[1] = 1; // payload
+  driver->dataBuffer[2] = len;
+  
+  txReg( driver, driver->i2cSlaveAddress, TMF8829_COM_REG_CMD_STAT, 3, driver->dataBuffer );
+  delayInMicroseconds(BL_CMD_R_RAM_TIMEOUT_MS);
+  rxReg( driver, driver->i2cSlaveAddress, TMF8829_COM_REG_CMD_STAT, BL_HEADER+len, buf );
+
+  if (buf[0] != TMF8829_COM_BL_STAT_READY)
+  {
+    return BL_ERROR_CMD;
+  }
+  if (buf[1] != len)
+  {
+    return BL_ERROR_CMD;
+  }
+
+  return BL_SUCCESS_OK;
+
 }
 
 // setup size for FIFO writes to both CPU RAMs in parallel
@@ -596,11 +620,16 @@ int8_t tmf8829DownloadFirmware ( tmf8829Driver * driver, uint32_t imageStartAddr
 
         stat = txReg( driver, driver->i2cSlaveAddress, FIFO, chunkLen, driver->dataBuffer );
     }
-
   }
   else
  {
-    stat = tmf8829BootloaderSetRamAddr( driver, imageStartAddress );
+    uint32_t addr = imageStartAddress;
+    uint8_t wrbuf[BL_HEADER+BL_MAX_DATA_PAYLOAD];
+    uint8_t rdbuf[BL_HEADER+BL_MAX_DATA_PAYLOAD];
+    
+    memset(wrbuf, 0, BL_HEADER+BL_MAX_DATA_PAYLOAD);
+    memset(rdbuf, 0, BL_HEADER+BL_MAX_DATA_PAYLOAD);
+
     idx = 0;  // start again at the image begin
     while ( stat == BL_SUCCESS_OK && ( idx < imageSizeInBytes ) )
     {
@@ -610,11 +639,41 @@ int8_t tmf8829DownloadFirmware ( tmf8829Driver * driver, uint32_t imageStartAddr
           PRINT_UINT_HEX( (uint32_t)idx );
           PRINT_LN( );
         }
+        
+        stat |= tmf8829BootloaderSetRamAddr( driver, addr );
         for( chunkLen=0; chunkLen < BL_MAX_DATA_PAYLOAD && idx < imageSizeInBytes; chunkLen++, idx++ )
         {
           driver->dataBuffer[BL_HEADER  + chunkLen] = readProgramMemoryByte( PTR_TO_UINT( image ) + idx ); // read from code memory into local ram buffer
         }
-        stat = tmf8829BootloaderWriteRamBoth( driver, chunkLen );
+        memcpy(wrbuf, driver->dataBuffer, BL_HEADER  + chunkLen);
+        
+
+        stat |= tmf8829BootloaderWriteRamBoth( driver, chunkLen );
+
+        //verify for cpu0 
+        stat |= tmf8829BootloaderSetRamAddr( driver, addr );
+        stat |= tmf8829BootloaderReadRam( driver, chunkLen, &rdbuf[0] );
+
+        if (memcmp(&wrbuf[BL_HEADER], &rdbuf[BL_HEADER], chunkLen ))
+        {
+          return FW_DOWNLOAD_VERIFY_CPU0;
+        }
+        //verify for cpu1 
+        stat |= tmf8829BootloaderSetRamAddr( driver, addr + SYS_OTHER_CPU_RAM );
+        stat |= tmf8829BootloaderReadRam( driver, chunkLen, &rdbuf[0] );
+
+        if (memcmp(&wrbuf[BL_HEADER], &rdbuf[BL_HEADER], chunkLen ))
+        {
+          return FW_DOWNLOAD_VERIFY_CPU1;
+        }
+
+        if ( stat != BL_SUCCESS_OK )
+        {
+          PRINT_STR( "Error in download!" );
+          PRINT_LN( );
+          return stat;
+        }
+        addr += chunkLen;
     }
 
   }
@@ -637,6 +696,13 @@ int8_t tmf8829DownloadFirmware ( tmf8829Driver * driver, uint32_t imageStartAddr
       txReg( driver, driver->i2cSlaveAddress, ENABLE, 1, driver->dataBuffer ); // set PON bit in enable register
 
       return stat;
+    }
+    else
+    {
+        PRINT_STR( "#Err" );
+        PRINT_CHAR( SEPARATOR );
+        PRINT_STR( "Start Ram App" );
+        PRINT_LN( );  
     }
   }
 
@@ -949,7 +1015,7 @@ void tmf8829ClrAndEnableInterrupts ( tmf8829Driver * driver, uint8_t mask )
 void tmf8829DisableInterrupts ( tmf8829Driver * driver, uint8_t mask )
 { 
   driver->dataBuffer[0] = 0;
-  txReg( driver, driver->i2cSlaveAddress, INT_ENAB, 1, driver->dataBuffer );   // read current enabled interrupts 
+  rxReg( driver, driver->i2cSlaveAddress, INT_ENAB, 1, driver->dataBuffer );   // read current enabled interrupts 
   driver->dataBuffer[0] = driver->dataBuffer[0] & ~mask;                                  // clear only those in the mask, keep the others if they were enabled
   txReg( driver, driver->i2cSlaveAddress, INT_ENAB, 1, driver->dataBuffer );
   driver->dataBuffer[0] = mask; 

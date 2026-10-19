@@ -36,6 +36,12 @@
  *     ... Kbuild uses ccflags instead of EXTRA_CFLAGS, for new linux version
  *     ... compile time switch for bin_attribute
  * 2.6 ... config_mode_store changed, CMD_LOAD_CFG_8X8_EXTENDED_RANGE mode possible
+ * 2.7 ... configuration_setting_store writting is only done, if input is correct.
+ *     ... corrected size for config_custom attribute.
+ *     ... firmware download, verification added if Ram option is used.
+ *     ... in probe: if tmf8829GetConfiguration or tmf8829ReadDeviceInfo fails, error -EIO returned.
+ *     ... bugfix in function spiTxReg kmalloc size was corrected to match the required buffer size.
+ *     ... core driver updates
  */
 
 /*! \file tmf8829_driver.h - TMF8829 linux driver

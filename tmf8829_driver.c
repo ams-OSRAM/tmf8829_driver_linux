@@ -88,19 +88,25 @@ static int firmware_download(struct device *dev) {
         error = intelHexHandleRecord(chip, line_end - line, line);
         if (error) {
             dev_err(dev, "Ram patch failed: %d\n", error);
-            return -2;
+            error = -2;
+            goto out;
         }
         line = ++line_end;
     }
 
     /*  Download Data */
-    error = tmf8829DownloadFirmware(&chip->tof_core, TMF8829_IMAGE_START , patchImage, imageSize, 1 /* use Fifo */);
+
+    error = tmf8829DownloadFirmware(&chip->tof_core, TMF8829_IMAGE_START , patchImage, imageSize, 0 /* use Ram */);
     if ( error != BL_SUCCESS_OK) {
         dev_err(dev, "Download Error %d\n", error);
-        return -3;
+        error = -3;
+        goto out;
     }
 
-    return 0;
+    error = 0;
+out:
+    release_firmware(cfg);
+    return error;
 }
 /**************************************************************************/
 /* Sysfs callbacks                                                        */
@@ -516,7 +522,7 @@ static ssize_t configuration_setting_store(struct device *dev, struct device_att
     if (error == APP_SUCCESS_OK) {
 
         if (!strncmp(attr->attr.name, "config_custom", strlen(attr->attr.name))) {
-            for (i = 0; (i <= TMF8829_CFG_PAGE_SIZE); i++) {
+            for (i = 0; (i < TMF8829_CFG_PAGE_SIZE); i++) {
                 sub_string = strsep((char **)&buf, " ");
                 if (sub_string) {
                     ret = sscanf(sub_string, "%hhx", &chip->tof_core.config[i]);
@@ -548,7 +554,10 @@ static ssize_t configuration_setting_store(struct device *dev, struct device_att
         else {
             dev_info(dev, " cmd not found\n"); 
         }
-        error = tmf8829SetConfiguration(&chip->tof_core);
+
+        if (ret == 1) {
+            error = tmf8829SetConfiguration(&chip->tof_core);
+        }
     }
     
     AMS_MUTEX_UNLOCK(&chip->lock);
@@ -1088,11 +1097,13 @@ static int tmf8829_probe(tmf8829_chip *chip)
 
     if (tmf8829GetConfiguration(&chip->tof_core) != APP_SUCCESS_OK) {
         dev_err(&chip->client->dev, "Read device configuration error.\n");
+        error = -EIO;
         goto gen_err;
     }
 
     if (tmf8829ReadDeviceInfo( &chip->tof_core) != APP_SUCCESS_OK) {
         dev_err(&chip->client->dev, "Read device information.\n");
+        error = -EIO;
         goto gen_err;
     }
     chip->tof_core.cyclicRunning = 0;
@@ -1320,4 +1331,4 @@ module_spi_driver(tmf8829_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("ams-OSRAM AG TMF8829 ToF sensor driver");
-MODULE_VERSION("2.6");
+MODULE_VERSION("2.7");
