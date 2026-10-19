@@ -99,7 +99,7 @@ int spiTxReg ( void *dptr, uint8_t regAddr, const char *data, size_t len )
     unsigned char *wrbuf;
     int ret = 0;
 
-    wrbuf = kmalloc(len + 1, GFP_KERNEL);
+    wrbuf = kmalloc(len + 2, GFP_KERNEL);
     if (!wrbuf)
         return -ENOMEM;
 
